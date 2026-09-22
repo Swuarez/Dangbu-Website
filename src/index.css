@@ -1,0 +1,595 @@
+@import "tailwindcss";
+
+/* ============================================================
+   DANGBU — DESIGN TOKENS
+   Aesthetic: Seoul charcoal-house at night.
+   Warm near-black base, lacquered ember red, hot brass foil,
+   bone-cream type. Korean signage display type + signage grotesque.
+   ============================================================ */
+
+@theme {
+  /* ---- Type ---- */
+  --font-display: "Black Han Sans", "Anton", Impact, "Haettenschweiler", "Arial Narrow Bold", sans-serif;
+  --font-sans: "Barlow", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* ---- Brand surface ramp ---- */
+  --color-ink: #0b0806;
+  --color-ink-soft: #120d0a;
+  --color-coal: #191311;
+  --color-ash: #221a16;
+  --color-smoke: #302420;
+  --color-char-line: #3a2c26;
+
+  /* ---- Heat ---- */
+  --color-ember: #e1221f;
+  --color-ember-bright: #ff4a34;
+  --color-ember-deep: #a1101a;
+  --color-lacquer: #7c0b12;
+
+  /* ---- Brass ---- */
+  --color-brass: #e7b24c;
+  --color-brass-light: #f8dda0;
+  --color-brass-deep: #91661a;
+
+  /* ---- Type colours ---- */
+  --color-bone: #f8f1e6;
+  --color-bone-dim: #cec0b0;
+  --color-ash-text: #8b7c6f;
+
+  /* ---- Lines / radii / motion ---- */
+  --color-edge: rgba(231, 178, 76, 0.22);
+  --color-edge-soft: rgba(248, 241, 230, 0.09);
+
+  --radius-brand: 1.15rem;
+  --radius-brand-lg: 1.75rem;
+  --radius-brand-sm: 0.7rem;
+
+  --ease-brand: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-marquee: marquee 44s linear infinite;
+  --animate-marquee-slow: marquee 70s linear infinite;
+  --animate-ember-rise: ember-rise 7s linear infinite;
+  --animate-flicker: flicker 5.5s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 3.4s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.22s var(--ease-brand) both;
+  --animate-fade-out: fade-out 0.18s ease-in forwards;
+  --animate-pop-in: pop-in 0.26s var(--ease-brand) both;
+  --animate-pop-out: pop-out 0.16s ease-in forwards;
+  --animate-slide-in-right: slide-in-right 0.34s var(--ease-brand) both;
+  --animate-slide-out-right: slide-out-right 0.22s ease-in forwards;
+  --animate-slide-in-left: slide-in-left 0.34s var(--ease-brand) both;
+  --animate-slide-out-left: slide-out-left 0.22s ease-in forwards;
+  --animate-zoom-in: zoom-in 0.36s var(--ease-brand) both;
+  --animate-emerge: emerge 0.5s var(--ease-brand) both;
+  --animate-sheen: sheen 2.6s linear infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes ember-rise {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate3d(var(--ember-drift, 24px), -46vh, 0) scale(0.35);
+    opacity: 0;
+  }
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  38% {
+    opacity: 0.9;
+  }
+  52% {
+    opacity: 0.42;
+  }
+  76% {
+    opacity: 0.78;
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.975);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(102%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(102%);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-102%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-102%);
+  }
+}
+
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes emerge {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheen {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================================
+   shadcn/ui semantic tokens (the site is intentionally dark-only)
+   ============================================================ */
+
+:root {
+  --radius: var(--radius-brand);
+
+  --background: var(--color-ink);
+  --foreground: var(--color-bone);
+
+  --card: color-mix(in srgb, var(--color-coal) 88%, black);
+  --card-foreground: var(--color-bone);
+
+  --popover: #171110;
+  --popover-foreground: var(--color-bone);
+
+  --primary: var(--color-ember);
+  --primary-foreground: #fff6f2;
+
+  --secondary: var(--color-ash);
+  --secondary-foreground: var(--color-bone);
+
+  --muted: var(--color-ash);
+  --muted-foreground: var(--color-ash-text);
+
+  --accent: var(--color-brass);
+  --accent-foreground: #1a1206;
+
+  --destructive: #f2554b;
+  --destructive-foreground: #fff5f3;
+
+  --border: color-mix(in srgb, var(--color-char-line) 78%, transparent);
+  --input: color-mix(in srgb, var(--color-smoke) 92%, transparent);
+  --ring: color-mix(in srgb, var(--color-brass) 70%, transparent);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    color-scheme: dark;
+    /* `clip` (not `hidden`) guarantees no stray horizontal scrollbar
+       without creating a scroll container that would break sticky nav. */
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-x: clip;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.65;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-variant-ligatures: common-ligatures;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    text-transform: uppercase;
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+    color: var(--color-bone);
+  }
+
+  p {
+    margin: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  img,
+  svg,
+  video {
+    display: block;
+    max-width: 100%;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brass);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--color-ember);
+    color: #fff;
+  }
+
+  ::placeholder {
+    color: color-mix(in srgb, var(--color-ash-text) 92%, transparent);
+  }
+
+  /* Slim branded scrollbars where supported */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-brass-deep) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: #120d0a;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--color-brass-deep), #5d3f11);
+    border-radius: 99px;
+    border: 2px solid #120d0a;
+  }
+}
+
+/* ============================================================
+   COMPONENT CLASSES — the reusable brand layer
+   ============================================================ */
+
+@layer components {
+  /* Layout shell: fluid gutters from 320px phones to ultrawide */
+  .shell {
+    width: 100%;
+    max-width: 88rem;
+    margin-inline: auto;
+    padding-inline: clamp(1rem, 4.2vw, 4rem);
+  }
+
+  .shell-wide {
+    max-width: 108rem;
+  }
+
+  .section-pad {
+    padding-block: clamp(3.5rem, 8vw, 7.5rem);
+  }
+
+  /* Fluid display type */
+  .display-hero {
+    font-family: var(--font-display);
+    font-size: clamp(3.6rem, 17.5vw, 15rem);
+    line-height: 0.8;
+    letter-spacing: -0.015em;
+  }
+
+  .display-xl {
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 7.4vw, 5.5rem);
+    line-height: 0.88;
+  }
+
+  .display-lg {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 4.6vw, 3.35rem);
+    line-height: 0.94;
+  }
+
+  .display-md {
+    font-family: var(--font-display);
+    font-size: clamp(1.3rem, 2.5vw, 1.85rem);
+    line-height: 1.02;
+  }
+
+  .display-price {
+    font-family: var(--font-display);
+    font-size: clamp(2.1rem, 6.6vw, 4rem);
+    line-height: 0.85;
+    letter-spacing: -0.02em;
+  }
+
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: clamp(0.66rem, 0.6rem + 0.3vw, 0.8rem);
+    font-weight: 600;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--color-brass);
+  }
+
+  .copy {
+    font-size: clamp(0.95rem, 0.9rem + 0.28vw, 1.12rem);
+    line-height: 1.72;
+    color: var(--color-bone-dim);
+    text-wrap: pretty;
+  }
+
+  .copy-sm {
+    font-size: clamp(0.83rem, 0.8rem + 0.2vw, 0.94rem);
+    line-height: 1.65;
+    color: var(--color-bone-dim);
+  }
+
+  /* Brass hairline panel used for every card surface */
+  .panel {
+    position: relative;
+    border-radius: var(--radius-brand);
+    border: 1px solid var(--color-edge-soft);
+    background:
+      linear-gradient(180deg, rgba(48, 36, 32, 0.55) 0%, rgba(18, 13, 10, 0.9) 100%);
+    backdrop-filter: blur(6px);
+  }
+
+  .panel-hover {
+    transition:
+      border-color 0.45s var(--ease-brand),
+      transform 0.45s var(--ease-brand),
+      box-shadow 0.45s var(--ease-brand);
+  }
+
+  .panel-hover:hover {
+    border-color: var(--color-edge);
+    box-shadow: 0 28px 70px -34px rgba(225, 34, 31, 0.75);
+  }
+
+  /* Grill slats — the visual signature of the brand */
+  .grill-slats {
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgba(231, 178, 76, 0.16) 0px,
+      rgba(231, 178, 76, 0.16) 2px,
+      transparent 2px,
+      transparent 14px
+    );
+  }
+
+  .grain {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)' opacity='0.5'/></svg>");
+    background-repeat: repeat;
+  }
+
+  .foil-text {
+    background: linear-gradient(
+      178deg,
+      var(--color-brass-light) 4%,
+      var(--color-brass) 38%,
+      #a8631b 62%,
+      var(--color-brass-light) 96%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .ember-text {
+    background: linear-gradient(178deg, #ffd6a3 6%, var(--color-ember-bright) 45%, #8e0c14 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Section heading rule with brass ticks */
+  .rule-brass {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--color-brass) 18%,
+      rgba(231, 178, 76, 0.25) 82%,
+      transparent
+    );
+  }
+
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    will-change: transform;
+  }
+
+  .marquee-mask {
+    mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  }
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+
+@utility glow-ember {
+  box-shadow:
+    0 0 0 1px rgba(231, 178, 76, 0.32),
+    0 26px 64px -28px rgba(225, 34, 31, 0.68);
+}
+
+@utility text-stroke-brass {
+  -webkit-text-stroke: 1px rgba(231, 178, 76, 0.55);
+  color: transparent;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================================
+   MOTION PREFERENCES — animations never override usability
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
