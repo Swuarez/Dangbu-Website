@@ -2,6 +2,7 @@ import { ArrowUp, Flame, MapPin, Phone } from "lucide-react";
 import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { MotionToggle } from "@/components/MotionToggle";
 import { branches } from "@/data/branches";
 import { navLinks, site, type NavLink } from "@/data/site";
 import { useScrollToSection } from "@/hooks/useScrollToSection";
@@ -127,6 +128,7 @@ export function Footer() {
           <p className="text-[0.76rem] text-ash-text">{site.copyright}</p>
 
           <div className="flex flex-wrap items-center gap-4 self-start sm:self-auto">
+            <MotionToggle />
             <Link
               to="/privacy"
               className="text-[0.68rem] uppercase tracking-[0.18em] text-ash-text/70 transition-colors hover:text-brass focus-visible:outline-2 focus-visible:outline-brass"

@@ -1,5 +1,5 @@
-import { useReducedMotion } from "motion/react";
 import * as React from "react";
+import { useMotionPreference } from "@/context/MotionPreferenceContext";
 import { cn } from "@/lib/utils";
 
 /** Decorative ember particles + heat glow layered behind hero content. */
@@ -22,7 +22,7 @@ export function EmberField({ className, count = 16 }: { className?: string; coun
     }));
   }, [count]);
 
-  const reducedMotion = useReducedMotion();
+  const { reduced: reducedMotion } = useMotionPreference();
 
   return (
     <div

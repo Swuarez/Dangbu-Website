@@ -64,7 +64,7 @@ export function BranchSection() {
               href={getDirectionsUrl(branches[0])}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Open Dangbu Main Branch in Google Maps"
+              aria-label={`Open in Maps — Dangbu Main Branch on Google Maps`}
             >
               <Navigation className="size-4" aria-hidden="true" />
               Open in Maps

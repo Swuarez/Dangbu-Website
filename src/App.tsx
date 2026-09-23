@@ -1,4 +1,3 @@
-import { useReducedMotion } from "motion/react";
 import * as React from "react";
 import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
@@ -10,6 +9,7 @@ import { Navbar } from "@/components/Navbar";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/context/AuthContext";
+import { useMotionPreference } from "@/context/MotionPreferenceContext";
 import { ReservationIntentProvider } from "@/context/ReservationIntentContext";
 import HomePage from "@/pages/HomePage";
 import NotFoundPage from "@/pages/NotFoundPage";
@@ -30,7 +30,7 @@ const SettingsPage = React.lazy(() => import("@/pages/dashboard/SettingsPage"));
 /** Keeps hash links (/#menu) and route changes scrolling predictably. */
 function ScrollManager() {
   const { pathname, hash } = useLocation();
-  const reduceMotion = useReducedMotion();
+  const { reduced: reduceMotion } = useMotionPreference();
 
   React.useEffect(() => {
     if (hash) {

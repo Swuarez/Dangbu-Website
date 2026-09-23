@@ -1,0 +1,30 @@
+# Dangbu Unlimited Samgyupsal &amp; Buffet
+
+> Korean BBQ restaurant in Quezon City, Philippines. Unlimited samgyupsal and
+> BBQ buffet with four packages from ₱299 to ₱499 per head, two branches, and
+> online table reservations.
+
+Dangbu is a family-friendly all-you-can-eat Korean BBQ house. The menu includes
+unlimited pork, beef, enoki, chicken, main dishes, side dishes, rice, sauces
+and dessert. Prices are per head, dine-in.
+
+## Pages
+
+- [Home](https://dangbu.vercel.app/): Marketing site, packages, branches, hours, and reservation form.
+- [Standard Set ₱299](https://dangbu.vercel.app/menu/299): Full menu poster for the ₱299 package.
+- [All Time Favorite ₱399](https://dangbu.vercel.app/menu/399): Full menu poster for the ₱399 package.
+- [Signature Feast ₱459](https://dangbu.vercel.app/menu/459): Full menu poster for the ₱459 package.
+- [Best Seller ₱499](https://dangbu.vercel.app/menu/499): Full menu poster for the ₱499 package.
+- [Reservation status](https://dangbu.vercel.app/reservation): Look up a booking with a reservation reference.
+- [Privacy Policy](https://dangbu.vercel.app/privacy): How personal data is handled.
+- [Terms](https://dangbu.vercel.app/terms): Terms of service.
+
+## Branches
+
+- Main Branch: West Fairview, Quezon City — daily 11:00–22:00 — 0945 673 2698
+- Novaliches Branch: Lot 4, Blk 3 Buenamar St., Novaliches Proper, Quezon City — daily 11:00–22:00 — (02) 7001-0685
+
+## Optional
+
+- Reservations can also be made by phone; walk-ins are welcome but reservations are seated first.
+- Leftovers are charged separately; menu items may change based on availability.

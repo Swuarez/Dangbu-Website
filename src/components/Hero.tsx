@@ -1,10 +1,12 @@
+import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 import { Beer, ChevronRight, Clock, Flame, Heart, MapPin, PartyPopper, Users, Utensils } from "lucide-react";
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { EmberField } from "@/components/EmberField";
+import { PosterPicture } from "@/components/PosterPicture";
 import { PriceStrip } from "@/components/PriceStrip";
 import { RevealGroup, RevealItem } from "@/components/Reveal";
 import { Button } from "@/components/ui/button";
+import { useMotionPreference } from "@/context/MotionPreferenceContext";
 import { useReservationIntent } from "@/context/ReservationIntentContext";
 import { menuPackages } from "@/data/menu";
 import { site } from "@/data/site";
@@ -34,7 +36,7 @@ const OCCASIONS: { title: string; blurb: string; icon: LucideIcon }[] = [
 ];
 
 function SealBadge() {
-  const reduceMotion = useReducedMotion();
+  const { reduced: reduceMotion } = useMotionPreference();
 
   return (
     <div
@@ -102,17 +104,70 @@ function SealBadge() {
   );
 }
 
+/**
+ * Lightweight parallax: one passive scroll listener + rAF writes
+ * --hero-shift (0 → 1 across the first 900 px). The atmosphere glow and the
+ * poster fan read it from CSS `translate`, so JS runs at most one
+ * custom-property write per frame (replaces motion/react's useScroll).
+ */
+function useHeroShift(active: boolean) {
+  const ref = React.useRef<HTMLElement>(null);
+
+  React.useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    if (!active) {
+      element.style.setProperty("--hero-shift", "0");
+      return;
+    }
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const progress = Math.min(1, Math.max(0, window.scrollY / 900));
+      element.style.setProperty("--hero-shift", String(progress));
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [active]);
+
+  return ref;
+}
+
+/** Entrance fade-up styles — omitted entirely in reduced-motion mode. */
+function riseIn(
+  y: number,
+  delay: number,
+  duration: number,
+  reduced: boolean,
+): React.CSSProperties | undefined {
+  if (reduced) return undefined;
+  return {
+    animation: `rise-in ${duration}s var(--ease-brand) both`,
+    animationDelay: `${delay}s`,
+    "--rise": `${y}px`,
+  } as React.CSSProperties;
+}
+
 export function Hero() {
-  const reduceMotion = useReducedMotion();
+  const { reduced: reduceMotion } = useMotionPreference();
   const scrollToSection = useScrollToSection();
   const { requestReservation } = useReservationIntent();
-  const { scrollY } = useScroll();
-  const glowShift = useTransform(scrollY, [0, 900], [0, 130]);
-  const fanShift = useTransform(scrollY, [0, 900], [0, -55]);
+  const heroRef = useHeroShift(!reduceMotion);
 
   return (
     <section
       id="home"
+      ref={heroRef}
       tabIndex={-1}
       aria-labelledby="hero-title"
       className="relative isolate flex flex-col overflow-hidden pt-20 focus:outline-none md:pt-24"
@@ -122,9 +177,9 @@ export function Hero() {
         aria-hidden="true"
         className="absolute inset-0 -z-20 bg-[radial-gradient(120%_90%_at_12%_110%,rgba(225,34,31,0.42)_0%,rgba(124,11,18,0.16)_42%,rgba(11,8,6,0)_72%)]"
       />
-      <motion.div
+      <div
         aria-hidden="true"
-        style={reduceMotion ? undefined : { y: glowShift }}
+        style={{ translate: "0 calc(var(--hero-shift, 0) * 130px)" }}
         className="absolute inset-x-0 -top-24 -z-20 h-[60vh] animate-glow-pulse bg-[radial-gradient(70%_60%_at_78%_0%,rgba(231,178,76,0.26)_0%,rgba(231,178,76,0.05)_45%,rgba(11,8,6,0)_75%)]"
       />
       <div
@@ -146,51 +201,39 @@ export function Hero() {
       <div className="shell flex flex-1 flex-col justify-center gap-10 py-8 sm:py-12 lg:py-16">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.06fr)_minmax(0,0.94fr)] lg:items-center xl:gap-14">
           <div className="flex flex-col items-start gap-5 sm:gap-6">
-            <motion.div
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            >
+            <div style={riseIn(14, 0, 0.55, reduceMotion)}>
               <span className="inline-flex items-center gap-2 rounded-full border border-ember/45 bg-ember/12 px-3.5 py-1.5 font-sans text-[0.6rem] font-semibold uppercase tracking-[0.24em] text-[#ffd2c6] sm:text-[0.66rem]">
                 <Flame className="size-3.5 animate-flicker text-ember-bright" aria-hidden="true" />
                 All-Unlimited Korean BBQ
               </span>
-            </motion.div>
+            </div>
 
-            <motion.h1
+            <h1
               id="hero-title"
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 26 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.75, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
               className="display-hero foil-text"
+              style={riseIn(26, 0.06, 0.75, reduceMotion)}
             >
               Dangbu
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
+            <p
               className="display-lg max-w-[26ch] text-bone"
+              style={riseIn(18, 0.14, 0.7, reduceMotion)}
             >
               Unlimited Samgyupsal <span className="text-brass">&amp;</span> Buffet
-            </motion.p>
+            </p>
 
-            <motion.p
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            <p
               className="copy max-w-[52ch]"
+              style={riseIn(16, 0.2, 0.7, reduceMotion)}
             >
               {site.hookline} Come hungry and enjoy the ultimate ALL-UNLIMITED Korean BBQ
               experience!
-            </motion.p>
+            </p>
 
-            <motion.div
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            <div
               className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
+              style={riseIn(16, 0.26, 0.7, reduceMotion)}
             >
               <Button
                 variant="brass"
@@ -208,13 +251,11 @@ export function Hero() {
               >
                 Reserve a Table
               </Button>
-            </motion.div>
+            </div>
 
-            <motion.ul
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.34, ease: [0.22, 1, 0.36, 1] }}
+            <ul
               className="mt-1 grid w-full gap-2.5 sm:grid-cols-3 sm:gap-3"
+              style={riseIn(14, 0.34, 0.7, reduceMotion)}
             >
               {HERO_FACTS.map((fact) => (
                 <li
@@ -225,12 +266,12 @@ export function Hero() {
                   <span className="text-[0.78rem] leading-snug text-bone-dim">{fact.label}</span>
                 </li>
               ))}
-            </motion.ul>
+            </ul>
           </div>
 
           {/* ---- poster fan ---- */}
-          <motion.div
-            style={reduceMotion ? undefined : { y: fanShift }}
+          <div
+            style={{ translate: "0 calc(var(--hero-shift, 0) * -55px)" }}
             className="relative mx-auto flex w-full max-w-xl flex-col items-center gap-5 lg:max-w-none"
           >
             <div className="relative h-[clamp(10rem,46vw,25rem)] w-full">
@@ -250,14 +291,12 @@ export function Hero() {
                     }}
                   >
                     <span className="block overflow-hidden rounded-[0.6rem] border border-brass/30 bg-coal shadow-[0_26px_60px_-26px_rgba(0,0,0,0.95)] transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:-translate-y-3 group-hover:scale-[1.05]">
-                      <img
-                        src={pkg.image}
+                      <PosterPicture
+                        image={pkg.image}
                         alt={pkg.imageAlt}
-                        width={1078}
-                        height={1440}
+                        sizes="(min-width: 1024px) 176px, 19vw"
                         loading={index === 0 ? "eager" : "lazy"}
                         fetchPriority={index === 0 ? "high" : "auto"}
-                        decoding="async"
                         className="aspect-[3/4] w-full object-cover"
                       />
                     </span>
@@ -274,7 +313,7 @@ export function Hero() {
             <p className="max-w-[32ch] text-center text-[0.66rem] uppercase tracking-[0.22em] text-ash-text sm:text-[0.72rem]">
               Official menu posters · tap a package to explore
             </p>
-          </motion.div>
+          </div>
         </div>
 
         {/* ---- occasions ribbon (merged from the former standalone section) ---- */}

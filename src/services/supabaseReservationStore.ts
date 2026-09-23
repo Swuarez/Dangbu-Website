@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "@/lib/supabaseClient";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import {
   ReservationError,
   type Reservation,
@@ -23,7 +23,8 @@ import {
  * Staff reads/updates happen in staffService with an authenticated session.
  */
 export function createSupabaseReservationStore(): ReservationStore {
-  const client = () => {
+  const client = async () => {
+    const supabase = await getSupabase();
     if (!supabase) {
       throw new ReservationError(
         "STORAGE_ERROR",
@@ -35,7 +36,7 @@ export function createSupabaseReservationStore(): ReservationStore {
 
   return {
     async forBranchDate(branchId, date): Promise<SlotOccupancy[]> {
-      const { data, error } = await client().rpc("slot_usage_for_branch_date", {
+      const { data, error } = await (await client()).rpc("slot_usage_for_branch_date", {
         p_branch_id: branchId,
         p_date: date,
       });
@@ -56,7 +57,7 @@ export function createSupabaseReservationStore(): ReservationStore {
     },
 
     async insert(reservation) {
-      const { error } = await client().from("reservations").insert(reservationToDb(reservation));
+      const { error } = await (await client()).from("reservations").insert(reservationToDb(reservation));
 
       if (error) {
         if (error.code === "23505") {
@@ -94,7 +95,7 @@ export function createSupabaseReservationStore(): ReservationStore {
       const target = reference.trim().toUpperCase();
       if (!target) return false;
 
-      const { data, error } = await client().rpc("cancel_reservation_by_reference", {
+      const { data, error } = await (await client()).rpc("cancel_reservation_by_reference", {
         p_reference: target,
       });
 
@@ -112,7 +113,7 @@ export function createSupabaseReservationStore(): ReservationStore {
       const target = reference.trim().toUpperCase();
       if (!target) return null;
 
-      const { data, error } = await client().rpc("reservation_by_reference", {
+      const { data, error } = await (await client()).rpc("reservation_by_reference", {
         p_reference: target,
       });
 

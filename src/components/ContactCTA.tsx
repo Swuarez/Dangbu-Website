@@ -52,7 +52,7 @@ export function ContactCTA() {
 
               <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button variant="brass" size="xl" asChild className="w-full sm:w-auto">
-                  <a href={site.phones[0].href} aria-label="Call Dangbu now">
+                  <a href={site.phones[0].href} aria-label={`Call Now — Dangbu at ${site.phones[0].label}`}>
                     <Phone className="size-4" aria-hidden="true" />
                     Call Now
                   </a>

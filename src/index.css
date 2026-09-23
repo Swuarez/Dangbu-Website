@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 /* ============================================================
    DANGBU — DESIGN TOKENS
@@ -115,6 +116,28 @@
   50% {
     opacity: 0.85;
     transform: scale(1.06);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--rise, 16px), 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slide-in-fade {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -621,19 +644,48 @@
 
 /* ============================================================
    MOTION PREFERENCES — animations never override usability
+   ------------------------------------------------------------
+   There are two ways to end up in reduced mode:
+
+     1. The OS/browser asks for it (prefers-reduced-motion: reduce) —
+        honoured by default.
+     2. The visitor picks "Reduced" in the footer motion control.
+
+   Choosing "Full" in the footer explicitly opts out of (1). That is why
+   the media query below is scoped with :not([data-motion="full"]) instead
+   of being overridden further down: these rules use !important, so a later
+   rule could not "undo" them.
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
-  html {
+  html:not([data-motion="full"]) {
     scroll-behavior: auto;
   }
 
-  *,
-  *::before,
-  *::after {
+  html:not([data-motion="full"]) *,
+  html:not([data-motion="full"]) *::before,
+  html:not([data-motion="full"]) *::after {
     animation-duration: 0.001ms !important;
+    animation-delay: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    transition-delay: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Explicit in-app choice: reduced motion, whatever the OS says. */
+html[data-motion="reduced"] {
+  scroll-behavior: auto;
+}
+
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-delay: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0.001ms !important;
+  scroll-behavior: auto !important;
 }

@@ -1,5 +1,4 @@
 import { ArrowUpRight, Flame, Menu as MenuIcon, Phone } from "lucide-react";
-import { motion } from "motion/react";
 import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,29 @@ export function Navbar() {
   const scrollToSection = useScrollToSection();
   const { requestReservation } = useReservationIntent();
   const [open, setOpen] = React.useState(false);
+
+  // Desktop active-link pill: measured once per active-section change and
+  // moved with a plain CSS transition (replaces motion's layoutId animation).
+  const navListRef = React.useRef<HTMLUListElement>(null);
+  const itemRefs = React.useRef<Record<string, HTMLLIElement | null>>({});
+  const [pill, setPill] = React.useState<{ x: number; w: number } | null>(null);
+
+  React.useLayoutEffect(() => {
+    const list = navListRef.current;
+    if (!list) return;
+
+    const measure = () => {
+      const activeId = isHome
+        ? (navLinks.find((link) => link.sectionId === activeSection)?.to ?? null)
+        : null;
+      const item = activeId ? itemRefs.current[activeId] : null;
+      setPill(item ? { x: item.offsetLeft, w: item.offsetWidth } : null);
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [activeSection, isHome]);
 
   React.useEffect(() => {
     setOpen(false);
@@ -77,11 +99,30 @@ export function Navbar() {
           </span>
         </Link>
 
-        <ul className="hidden items-center gap-0.5 lg:flex xl:gap-1.5">
+        <ul
+          ref={navListRef}
+          className="relative hidden items-center gap-0.5 lg:flex xl:gap-1.5"
+        >
+          <li
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute left-0 top-0 h-full rounded-full border border-brass/35 bg-brass/12 transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)]",
+              pill ? "opacity-100" : "opacity-0",
+            )}
+            style={{
+              transform: `translateX(${pill?.x ?? 0}px)`,
+              width: pill?.w ?? 0,
+            }}
+          />
           {navLinks.map((link) => {
             const isActive = isHome && activeSection === link.sectionId;
             return (
-              <li key={link.to}>
+              <li
+                key={link.to}
+                ref={(node) => {
+                  itemRefs.current[link.to] = node;
+                }}
+              >
                 <Link
                   to={link.to}
                   onClick={(event) => handleLinkClick(event, link)}
@@ -91,14 +132,6 @@ export function Navbar() {
                     isActive ? "text-brass-light" : "text-bone-dim hover:text-bone",
                   )}
                 >
-                  {isActive ? (
-                    <motion.span
-                      layoutId="nav-active-pill"
-                      aria-hidden="true"
-                      className="absolute inset-0 rounded-full border border-brass/35 bg-brass/12"
-                      transition={{ type: "spring", stiffness: 400, damping: 34 }}
-                    />
-                  ) : null}
                   <span className="relative">{link.label}</span>
                 </Link>
               </li>
@@ -148,23 +181,15 @@ export function Navbar() {
               </div>
 
               <nav aria-label="Mobile" className="mt-2">
-                <motion.ul
-                  initial="hidden"
-                  animate="visible"
-                  variants={{
-                    hidden: {},
-                    visible: { transition: { staggerChildren: 0.05, delayChildren: 0.06 } },
-                  }}
-                  className="flex flex-col"
-                >
+                <ul className="flex flex-col">
                   {navLinks.map((link, index) => (
-                    <motion.li
+                    <li
                       key={link.to}
-                      variants={{
-                        hidden: { opacity: 0, x: 18 },
-                        visible: { opacity: 1, x: 0, transition: { duration: 0.36 } },
-                      }}
                       className="border-b border-bone/8 last:border-b-0"
+                      style={{
+                        animation: "slide-in-fade 0.36s var(--ease-brand) both",
+                        animationDelay: `${0.06 + index * 0.05}s`,
+                      }}
                     >
                       <Link
                         to={link.to}
@@ -186,9 +211,9 @@ export function Navbar() {
                         </span>
                         <ArrowUpRight className="size-4 shrink-0 text-brass/70" aria-hidden="true" />
                       </Link>
-                    </motion.li>
+                    </li>
                   ))}
-                </motion.ul>
+                </ul>
               </nav>
 
               <div className="mt-auto flex flex-col gap-3 pt-4">

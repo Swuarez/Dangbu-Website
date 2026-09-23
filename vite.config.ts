@@ -27,7 +27,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           "react-vendor": ["react", "react-dom", "react-router-dom"],
-          motion: ["motion"],
           forms: ["react-hook-form", "zod", "@hookform/resolvers"],
           supabase: ["@supabase/supabase-js"],
           ui: [

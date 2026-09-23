@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useReducedMotion } from "motion/react";
+import { useMotionPreference } from "@/context/MotionPreferenceContext";
 
 /**
  * Smoothly scrolls to a section id, swaps focus for keyboard/AT users and
@@ -7,7 +7,7 @@ import { useReducedMotion } from "motion/react";
  * is not on the current page.
  */
 export function useScrollToSection() {
-  const reduceMotion = useReducedMotion();
+  const { reduced: reduceMotion } = useMotionPreference();
 
   return useCallback(
     (id: string): boolean => {

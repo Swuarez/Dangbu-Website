@@ -1,5 +1,5 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 import type { Reservation, ReservationStatus } from "@/services/reservationService";
 import {
   dbToReservation,
@@ -35,9 +35,10 @@ export interface ReservationPage {
   pageSize: number;
 }
 
-function assertClient() {
-  if (!supabase) throw new Error("Supabase is not configured.");
-  return supabase;
+async function assertClient() {
+  const client = await getSupabase();
+  if (!client) throw new Error("Supabase is not configured.");
+  return client;
 }
 
 export async function fetchReservations(query: ReservationQuery): Promise<ReservationPage> {
@@ -45,7 +46,7 @@ export async function fetchReservations(query: ReservationQuery): Promise<Reserv
   const from = query.page * pageSize;
   const to = from + pageSize - 1;
 
-  let builder = assertClient()
+  let builder = (await assertClient())
     .from("reservations")
     .select(
       "id, reference, full_name, mobile, email, branch_id, package_id, reservation_date, reservation_time, guests, special_request, status, internal_notes, created_at, updated_at",
@@ -82,12 +83,12 @@ export async function updateReservationStatus(
   id: string,
   status: ReservationStatus,
 ): Promise<void> {
-  const { error } = await assertClient().from("reservations").update({ status }).eq("id", id);
+  const { error } = await (await assertClient()).from("reservations").update({ status }).eq("id", id);
   if (error) throw new Error(friendly(error.message));
 }
 
 export async function updateReservationNotes(id: string, internalNotes: string): Promise<void> {
-  const { error } = await assertClient()
+  const { error } = await (await assertClient())
     .from("reservations")
     .update({ internal_notes: internalNotes.trim() || null })
     .eq("id", id);
@@ -103,7 +104,7 @@ export interface DashboardStats {
 
 /** Cheap COUNT queries (head-only, no rows transferred). */
 export async function fetchDashboardStats(todayKey: string): Promise<DashboardStats> {
-  const client = assertClient();
+  const client = await assertClient();
   const count = async (build: () => PromiseLike<{ count: number | null; error: unknown }>) => {
     const { count: value, error } = await build();
     if (error) throw new Error("Could not load dashboard numbers.");
@@ -125,7 +126,7 @@ export async function fetchDashboardStats(todayKey: string): Promise<DashboardSt
 /* ------------------------- Staff ------------------------- */
 
 export async function fetchStaff(): Promise<DbStaffProfile[]> {
-  const { data, error } = await assertClient()
+  const { data, error } = await (await assertClient())
     .from("staff_profiles")
     .select("id, full_name, role, created_at")
     .order("created_at", { ascending: true });
@@ -134,12 +135,12 @@ export async function fetchStaff(): Promise<DbStaffProfile[]> {
 }
 
 export async function updateStaffRole(id: string, role: StaffRole): Promise<void> {
-  const { error } = await assertClient().from("staff_profiles").update({ role }).eq("id", id);
+  const { error } = await (await assertClient()).from("staff_profiles").update({ role }).eq("id", id);
   if (error) throw new Error(friendly(error.message));
 }
 
 export async function removeStaff(id: string): Promise<void> {
-  const { error } = await assertClient().from("staff_profiles").delete().eq("id", id);
+  const { error } = await (await assertClient()).from("staff_profiles").delete().eq("id", id);
   if (error) throw new Error(friendly(error.message));
 }
 
@@ -150,16 +151,26 @@ export async function removeStaff(id: string): Promise<void> {
  * Returns an unsubscribe function — always call it on unmount.
  */
 export function subscribeToReservations(onChange: () => void): () => void {
-  const client = supabase;
-  if (!client) return () => undefined;
+  // Synchronous unsubscribe API while the SDK loads asynchronously.
+  let active = true;
+  let teardown: (() => void) | undefined;
 
-  const channel: RealtimeChannel = client
-    .channel("staff-reservations")
-    .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, onChange)
-    .subscribe();
+  void getSupabase().then((client) => {
+    if (!client || !active) return;
+
+    const channel: RealtimeChannel = client
+      .channel("staff-reservations")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, onChange)
+      .subscribe();
+
+    teardown = () => {
+      void client.removeChannel(channel);
+    };
+  });
 
   return () => {
-    void client.removeChannel(channel);
+    active = false;
+    teardown?.();
   };
 }
 

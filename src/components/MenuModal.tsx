@@ -3,6 +3,7 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { PosterPicture } from "@/components/PosterPicture";
 import { useReservationIntent } from "@/context/ReservationIntentContext";
 import { menuPackages } from "@/data/menu";
 
@@ -57,13 +58,11 @@ export function MenuModal({
                 aria-hidden="true"
                 className="grill-slats pointer-events-none absolute inset-0 opacity-[0.1]"
               />
-              <img
+              <PosterPicture
                 key={pkg.id}
-                src={pkg.image}
+                image={pkg.image}
                 alt={pkg.imageAlt}
-                width={1078}
-                height={1440}
-                decoding="async"
+                sizes="(min-width: 1024px) 620px, 94vw"
                 className="mx-auto max-h-[38dvh] w-auto max-w-full animate-zoom-in rounded-lg border border-brass/25 object-contain shadow-[0_30px_70px_-30px_rgba(0,0,0,0.95)] sm:max-h-[46dvh] lg:max-h-[76dvh]"
               />
 

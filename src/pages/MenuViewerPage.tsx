@@ -3,6 +3,7 @@ import * as React from "react";
 import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PosterPicture } from "@/components/PosterPicture";
 import { useReservationIntent } from "@/context/ReservationIntentContext";
 import { menuPackages } from "@/data/menu";
 
@@ -90,12 +91,12 @@ export default function MenuViewerPage() {
             </p>
           </div>
         ) : (
-          <img
-            src={pkg.image}
+          <PosterPicture
+            image={pkg.image}
             alt={`Full menu for ${pkg.name} — ${pkg.price} per head at Dangbu Unlimited Samgyupsal & Buffet`}
-            width={1078}
-            height={1440}
-            decoding="async"
+            sizes="(min-width: 640px) min(92vw, 900px), 96vw"
+            loading="eager"
+            fetchPriority="high"
             onError={() => setFailed(true)}
             className="h-auto max-h-[calc(100vh-9rem)] max-h-[calc(100svh-9rem)] w-auto max-w-[96vw] rounded-lg border border-brass/25 object-contain shadow-[0_30px_70px_-30px_rgba(0,0,0,0.95)] sm:max-w-[min(92vw,900px)]"
           />

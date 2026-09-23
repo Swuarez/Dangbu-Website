@@ -76,6 +76,7 @@ export default function AnnouncementsPage() {
   const [form, setForm] = React.useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [showErrors, setShowErrors] = React.useState(false);
 
   React.useEffect(() => {
     document.title = "Announcements — Dangbu Staff";
@@ -121,9 +122,11 @@ export default function AnnouncementsPage() {
 
   const save = async () => {
     if (!form.title.trim() || !form.message.trim()) {
+      setShowErrors(true);
       toast.error("Title and message are required.");
       return;
     }
+    setShowErrors(false);
     // Block javascript:/data: links before they ever reach the public page.
     const buttonUrl = form.buttonUrl.trim();
     if (buttonUrl && !/^(https:\/\/|\/(?!\/))/i.test(buttonUrl)) {
@@ -156,6 +159,12 @@ export default function AnnouncementsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  /** Enter submits the dialog form — native form semantics, keyboard friendly. */
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void save();
   };
 
   const toggleActive = async (item: DbAnnouncement) => {
@@ -281,121 +290,193 @@ export default function AnnouncementsPage() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit announcement" : "New announcement"}</DialogTitle>
-            <DialogDescription>
-              Shown at the top of the public website while active and within its date window.
-            </DialogDescription>
-          </DialogHeader>
+          <form className="flex min-h-0 flex-col" onSubmit={submit} noValidate>
+            <DialogHeader>
+              <DialogTitle>{editing ? "Edit announcement" : "New announcement"}</DialogTitle>
+              <DialogDescription>
+                Shown at the top of the public website while active and within its date window.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="grid max-h-[60dvh] gap-3.5 overflow-y-auto px-5 pb-2 sm:px-7">
-            <div className="grid gap-1.5">
-              <Label htmlFor="ann-title">Title</Label>
-              <Input
-                id="ann-title"
-                value={form.title}
-                onChange={(event) => setField("title", event.target.value)}
-                placeholder="e.g. Holiday Hours"
-                maxLength={120}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="ann-message">Message</Label>
-              <Textarea
-                id="ann-message"
-                rows={3}
-                value={form.message}
-                onChange={(event) => setField("message", event.target.value)}
-                placeholder="Short message guests will read in the top bar…"
-                maxLength={400}
-              />
-            </div>
-            <div className="grid gap-3.5 sm:grid-cols-3">
+            <div className="flex max-h-[calc(100dvh-15rem)] min-h-0 flex-col gap-4 overflow-y-auto px-5 py-4 sm:px-7 sm:py-5">
               <div className="grid gap-1.5">
-                <Label htmlFor="ann-type">Type</Label>
-                <Select
-                  value={form.type}
-                  onValueChange={(value) => setField("type", value as AnnouncementType)}
-                >
-                  <SelectTrigger id="ann-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="ann-starts">Start date</Label>
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor="ann-title">
+                    Title{" "}
+                    <span className="text-ember" aria-hidden="true">
+                      *
+                    </span>
+                  </Label>
+                  <span className="font-sans text-[0.66rem] tabular-nums text-ash-text">
+                    {form.title.length}/120
+                  </span>
+                </div>
                 <Input
-                  id="ann-starts"
-                  type="datetime-local"
-                  value={form.startsAt}
-                  onChange={(event) => setField("startsAt", event.target.value)}
+                  id="ann-title"
+                  value={form.title}
+                  onChange={(event) => setField("title", event.target.value)}
+                  placeholder="e.g. Holiday Hours"
+                  maxLength={120}
+                  aria-invalid={showErrors && !form.title.trim()}
+                  aria-describedby={showErrors && !form.title.trim() ? "ann-title-error" : undefined}
                 />
+                {showErrors && !form.title.trim() ? (
+                  <p id="ann-title-error" role="alert" className="text-[0.72rem] text-[#ff9d92]">
+                    Give the announcement a title.
+                  </p>
+                ) : null}
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="ann-ends">End date (optional)</Label>
-                <Input
-                  id="ann-ends"
-                  type="datetime-local"
-                  value={form.endsAt}
-                  onChange={(event) => setField("endsAt", event.target.value)}
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor="ann-message">
+                    Message{" "}
+                    <span className="text-ember" aria-hidden="true">
+                      *
+                    </span>
+                  </Label>
+                  <span className="font-sans text-[0.66rem] tabular-nums text-ash-text">
+                    {form.message.length}/400
+                  </span>
+                </div>
+                <Textarea
+                  id="ann-message"
+                  rows={3}
+                  value={form.message}
+                  onChange={(event) => setField("message", event.target.value)}
+                  placeholder="Short message guests will read in the top bar…"
+                  maxLength={400}
+                  aria-invalid={showErrors && !form.message.trim()}
+                  aria-describedby={
+                    showErrors && !form.message.trim() ? "ann-message-error" : undefined
+                  }
                 />
+                {showErrors && !form.message.trim() ? (
+                  <p id="ann-message-error" role="alert" className="text-[0.72rem] text-[#ff9d92]">
+                    Add the message guests will read.
+                  </p>
+                ) : (
+                  <p className="text-[0.72rem] text-ash-text">
+                    Keep it short — it renders in a single bar above the navbar.
+                  </p>
+                )}
               </div>
-            </div>
-            <div className="grid gap-3.5 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="ann-btn-text">Button text (optional)</Label>
-                <Input
-                  id="ann-btn-text"
-                  value={form.buttonText}
-                  onChange={(event) => setField("buttonText", event.target.value)}
-                  placeholder="e.g. Learn more"
-                  maxLength={40}
-                />
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <div className="grid gap-1.5 sm:col-span-2">
+                  <Label htmlFor="ann-type">Type</Label>
+                  <Select
+                    value={form.type}
+                    onValueChange={(value) => setField("type", value as AnnouncementType)}
+                  >
+                    <SelectTrigger id="ann-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[0.72rem] text-ash-text">
+                    Sets the bar colour and icon on the public site.
+                  </p>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ann-starts">Start date</Label>
+                  <Input
+                    id="ann-starts"
+                    type="datetime-local"
+                    value={form.startsAt}
+                    onChange={(event) => setField("startsAt", event.target.value)}
+                    className="[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&:hover::-webkit-calendar-picker-indicator]:opacity-100"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ann-ends">End date (optional)</Label>
+                  <Input
+                    id="ann-ends"
+                    type="datetime-local"
+                    value={form.endsAt}
+                    onChange={(event) => setField("endsAt", event.target.value)}
+                    className="[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 [&:hover::-webkit-calendar-picker-indicator]:opacity-100"
+                  />
+                </div>
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="ann-btn-url">Button URL (optional)</Label>
-                <Input
-                  id="ann-btn-url"
-                  type="url"
-                  value={form.buttonUrl}
-                  onChange={(event) => setField("buttonUrl", event.target.value)}
-                  placeholder="https://… or /#menu"
-                  maxLength={200}
-                />
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ann-btn-text">Button text (optional)</Label>
+                  <Input
+                    id="ann-btn-text"
+                    value={form.buttonText}
+                    onChange={(event) => setField("buttonText", event.target.value)}
+                    placeholder="e.g. Learn more"
+                    maxLength={40}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="ann-btn-url">Button URL (optional)</Label>
+                  <Input
+                    id="ann-btn-url"
+                    type="url"
+                    value={form.buttonUrl}
+                    onChange={(event) => setField("buttonUrl", event.target.value)}
+                    placeholder="https://… or /#menu"
+                    maxLength={200}
+                  />
+                </div>
+                <p className="text-[0.72rem] leading-relaxed text-ash-text sm:col-span-2">
+                  Fill in both fields to show a button. Links must start with
+                  <span className="font-semibold text-bone">{" https:// "}</span>
+                  or be a site path like
+                  <span className="font-semibold text-bone">{" /#menu"}</span>.
+                </p>
               </div>
-            </div>
-            <label
-              htmlFor="ann-active"
-              className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-bone/10 bg-ink/60 px-3.5 py-2.5"
-            >
-              <input
-                id="ann-active"
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(event) => setField("isActive", event.target.checked)}
-                className="size-4 accent-[#e7b24c]"
-              />
-              <span className="font-sans text-[0.8rem] text-bone-dim">
-                Active (visible on the website during its date window)
-              </span>
-            </label>
-          </div>
 
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="ember" onClick={() => void save()} disabled={saving}>
-              {saving ? "Saving…" : editing ? "Save changes" : "Publish"}
-            </Button>
-          </DialogFooter>
+              <label
+                htmlFor="ann-active"
+                className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-bone/10 bg-ink/60 px-4 py-3 transition-colors hover:border-bone/20"
+              >
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="font-sans text-[0.8rem] font-semibold text-bone">Active</span>
+                  <span className="text-[0.72rem] leading-snug text-ash-text">
+                    Shows on the website during its date window.
+                  </span>
+                </span>
+                <span className="relative inline-flex shrink-0">
+                  <input
+                    id="ann-active"
+                    type="checkbox"
+                    checked={form.isActive}
+                    onChange={(event) => setField("isActive", event.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="h-6 w-11 rounded-full border border-bone/15 bg-ink-soft transition-colors peer-checked:border-brass/60 peer-checked:bg-brass/85 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brass"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-0.5 top-0.5 size-5 rounded-full bg-bone/70 shadow-[0_2px_6px_rgba(0,0,0,0.5)] transition-transform duration-200 peer-checked:translate-x-5 peer-checked:bg-ink"
+                  />
+                </span>
+              </label>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDialogOpen(false)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="ember" disabled={saving}>
+                {saving ? "Saving…" : editing ? "Save changes" : "Publish"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

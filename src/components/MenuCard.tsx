@@ -1,6 +1,7 @@
 import { Check, Flame, Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PosterPicture } from "@/components/PosterPicture";
 import { useReservationIntent } from "@/context/ReservationIntentContext";
 import type { MenuPackage } from "@/data/menu";
 import { cn } from "@/lib/utils";
@@ -40,13 +41,11 @@ export function MenuCard({
         aria-label={`Open the full ${pkg.price} ${pkg.name} menu`}
         className="relative block w-full cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-brass"
       >
-        <img
-          src={pkg.image}
+        <PosterPicture
+          image={pkg.image}
           alt={pkg.imageAlt}
-          width={1078}
-          height={1440}
+          sizes="(min-width: 1280px) 285px, (min-width: 640px) 45vw, 90vw"
           loading="lazy"
-          decoding="async"
           className="aspect-[3/4] w-full object-cover transition-transform duration-[900ms] ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-[1.06]"
         />
 

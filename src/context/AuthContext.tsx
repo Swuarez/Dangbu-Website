@@ -1,6 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
 import * as React from "react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabaseClient";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import type { DbStaffProfile, StaffRole } from "@/types/database";
 
 /* ============================================================
@@ -26,6 +26,7 @@ export interface AuthState {
 const AuthContext = React.createContext<AuthState | null>(null);
 
 async function loadProfile(userId: string): Promise<DbStaffProfile | null> {
+  const supabase = await getSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase
     .from("staff_profiles")
@@ -42,44 +43,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = React.useState<DbStaffProfile | null>(null);
 
   React.useEffect(() => {
-    if (!supabase) return;
+    if (!isSupabaseConfigured) return;
     let cancelled = false;
+    let teardown: (() => void) | undefined;
 
-    supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
-        if (cancelled) return;
-        setSession(data.session ?? null);
-        if (data.session?.user) {
-          setProfile(await loadProfile(data.session.user.id));
+    // The SDK loads as an async chunk — never on the critical path.
+    void getSupabase().then((client) => {
+      if (cancelled) return;
+      if (!client) {
+        setLoading(false);
+        return;
+      }
+
+      client.auth
+        .getSession()
+        .then(async ({ data }) => {
+          if (cancelled) return;
+          setSession(data.session ?? null);
+          if (data.session?.user) {
+            setProfile(await loadProfile(data.session.user.id));
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+
+      const {
+        data: { subscription },
+      } = client.auth.onAuthStateChange((_event, nextSession) => {
+        setSession(nextSession);
+        if (nextSession?.user) {
+          // Defer so we never block Supabase's internal auth callback.
+          window.setTimeout(() => {
+            void loadProfile(nextSession.user.id).then(setProfile);
+          }, 0);
+        } else {
+          setProfile(null);
         }
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setLoading(false);
       });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      if (nextSession?.user) {
-        // Defer so we never block Supabase's internal auth callback.
-        window.setTimeout(() => {
-          void loadProfile(nextSession.user.id).then(setProfile);
-        }, 0);
-      } else {
-        setProfile(null);
-      }
+      teardown = () => subscription.unsubscribe();
+      if (cancelled) teardown();
     });
 
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
+      teardown?.();
     };
   }, []);
 
   const signIn = React.useCallback(async (email: string, password: string) => {
+    const supabase = await getSupabase();
     if (!supabase) throw new Error("Supabase is not configured.");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
@@ -91,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = React.useCallback(async () => {
+    const supabase = await getSupabase();
     if (!supabase) return;
     await supabase.auth.signOut();
     setSession(null);

@@ -1,5 +1,5 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 import type { DbAnnouncement, DbAnnouncementInsert } from "@/types/database";
 
 /* ============================================================
@@ -14,6 +14,7 @@ const ANNOUNCEMENT_COLUMNS =
 
 /** Active announcements for the public website (anon-safe, RLS-filtered). */
 export async function fetchActiveAnnouncements(): Promise<DbAnnouncement[]> {
+  const supabase = await getSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("announcements")
@@ -28,6 +29,7 @@ export async function fetchActiveAnnouncements(): Promise<DbAnnouncement[]> {
 
 /** Full list for the dashboard (requires staff session). */
 export async function fetchAllAnnouncements(): Promise<DbAnnouncement[]> {
+  const supabase = await getSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("announcements")
@@ -39,6 +41,7 @@ export async function fetchAllAnnouncements(): Promise<DbAnnouncement[]> {
 }
 
 export async function createAnnouncement(input: DbAnnouncementInsert): Promise<void> {
+  const supabase = await getSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
   const { error } = await supabase.from("announcements").insert(input);
   if (error) throw new Error(friendly(error.message));
@@ -48,12 +51,14 @@ export async function updateAnnouncement(
   id: string,
   input: Partial<DbAnnouncementInsert>,
 ): Promise<void> {
+  const supabase = await getSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
   const { error } = await supabase.from("announcements").update(input).eq("id", id);
   if (error) throw new Error(friendly(error.message));
 }
 
 export async function deleteAnnouncement(id: string): Promise<void> {
+  const supabase = await getSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
   const { error } = await supabase.from("announcements").delete().eq("id", id);
   if (error) throw new Error(friendly(error.message));
@@ -64,16 +69,27 @@ export async function deleteAnnouncement(id: string): Promise<void> {
  * Caller MUST invoke it on unmount to free the realtime connection.
  */
 export function subscribeToAnnouncements(onChange: () => void): () => void {
-  const client = supabase;
-  if (!client) return () => undefined;
+  // Keep a synchronous unsubscribe API while the SDK loads asynchronously;
+  // if the caller unmounts first, we simply never attach the channel.
+  let active = true;
+  let teardown: (() => void) | undefined;
 
-  const channel: RealtimeChannel = client
-    .channel("public-announcements")
-    .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, onChange)
-    .subscribe();
+  void getSupabase().then((client) => {
+    if (!client || !active) return;
+
+    const channel: RealtimeChannel = client
+      .channel("public-announcements")
+      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, onChange)
+      .subscribe();
+
+    teardown = () => {
+      void client.removeChannel(channel);
+    };
+  });
 
   return () => {
-    void client.removeChannel(channel);
+    active = false;
+    teardown?.();
   };
 }
 

@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -45,11 +45,25 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="shortcut icon" href="/favicon.svg" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      Self-hosted fonts (public/fonts + src/fonts.css @font-face rules):
+      replaces the render-blocking Google Fonts stylesheet (781 ms in the
+      Lighthouse audit) with same-origin files, font-display: swap, and only
+      the two first-paint faces preloaded below.
+    -->
     <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Black+Han+Sans&display=swap"
+      rel="preload"
+      href="/fonts/black-han-sans-400-ea8Aad44WunzF9a-dL6toA8r8kqSK3U.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/barlow-400-7cHpv4kjgoGqM7E_DMs5.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
     />
     <script type="application/ld+json">
       {
