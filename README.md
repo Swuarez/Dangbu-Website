@@ -41,22 +41,24 @@ Google Maps search URLs (no paid Maps API).
 ## Project structure
 
 ```text
-├─ supabase/migrations/      SQL: schema + RLS + owner bootstrap
-├─ public/                   favicon, og-image, _redirects (SPA fallback)
+├─ supabase/migrations/      SQL: 0001 schema + RLS, 0002 owner seed, 0003 security hardening
+├─ public/                   favicon, og-image, _headers (CSP/HSTS — Cloudflare + Workers)
 ├─ src/
 │  ├─ assets/                img1–4.jpg menu posters (bundled, no CDN)
-│  ├─ components/            sections, MenuModal, AnnouncementBar, ui/ primitives
+│  ├─ components/            sections, MenuModal, AnnouncementBar, CookieNotice, ui/ primitives
 │  ├─ context/               AuthContext, ReservationIntentContext
 │  ├─ data/                  menu, branches, reservation rules, site info
 │  ├─ layouts/               DashboardLayout
 │  ├─ lib/                   utils (cn), supabaseClient
-│  ├─ pages/                 Home, MenuViewer, Login, dashboard/*, status, 404
+│  ├─ pages/                 Home, MenuViewer, Login, dashboard/*, status, Privacy, Terms, 404
 │  ├─ schemas/               Zod reservation schema
 │  ├─ services/              reservationService (store seam), supabaseReservationStore,
 │  │                          staffService, announcementService
 │  └─ types/                 database row types + mappers
 ├─ .env.example              environment template (copy to .env)
-├─ vercel.json               SPA rewrites for Vercel
+├─ wrangler.jsonc            Cloudflare Workers Static Assets (SPA fallback; no _redirects)
+├─ vercel.json               SPA rewrites + security headers for Vercel
+├─ SECURITY.md               audit findings + manual setup checklist
 └─ DEPLOYMENT.md             step-by-step free deployment guide
 ```
 

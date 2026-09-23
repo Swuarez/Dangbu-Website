@@ -116,7 +116,9 @@ git push -u origin main
 
 ### Option A — Cloudflare Workers Static Assets (recommended; current Cloudflare standard)
 
-Cloudflare's current recommendation for static sites is **Workers with Static Assets** (Pages remains supported, but new features land on Workers). This repo ships a ready [`wrangler.jsonc`](wrangler.jsonc) that points at `dist/` and enables SPA fallback (`not_found_handling = "single-page-application"`), so no `_redirects` file is needed.
+Cloudflare's current recommendation for static sites is **Workers with Static Assets** (Pages remains supported, but new features land on Workers). This repo ships a ready [`wrangler.jsonc`](wrangler.jsonc) that points at `dist/` and enables SPA fallback (`not_found_handling = "single-page-application"`).
+
+> ⚠️ **Do not add `public/_redirects` when deploying to Workers.** A rule like `/*  /index.html  200` is rejected by the Workers upload with *"Infinite loop detected in this rule"* (**error 100324**) — that file is a Cloudflare **Pages** feature. It has been removed from this repo on purpose; the SPA fallback comes from `not_found_handling` instead (see Option B if you ever switch to Pages).
 
 **From the dashboard (git-connected, auto-deploys on push):**
 
@@ -139,7 +141,13 @@ npx wrangler deploy        # first run asks you to log in to Cloudflare
 1. <https://pages.cloudflare.com> → **Create → Pages → Connect to Git** → select the repo.
 2. Build settings: framework preset **Vite**, build command `npm run build`, output directory `dist`.
 3. **Environment variables** (Production + Preview): add both `VITE_*` variables.
-4. Deploy. SPA routing works automatically via `public/_redirects` (`/* → /index.html`).
+4. **Create `public/_redirects`** — it is intentionally absent from this repo because Workers rejects it (error 100324), but **Pages needs it** for deep links. Add a file with exactly this line:
+
+   ```text
+   /*    /index.html   200
+   ```
+
+5. Deploy. SPA routing then works for `/menu/299`, `/privacy` and `/reservation/…` on hard refresh.
 
 ### Option C — Vercel Hobby (non-commercial use only per Vercel's terms)
 
@@ -245,6 +253,7 @@ dashboard-side and must be switched on by hand.
 | Slots load but booking insert fails | Migrations not run → run step 2 |
 | Announcement doesn't appear publicly | Check `is_active`, `starts_at`, `ends_at` window |
 | Dashboard empty for staff | RLS: confirm the migrations ran in the right project |
+| Deploy fails: `Invalid _redirects configuration … Infinite loop detected in this rule` (code 100324) | `public/_redirects` exists while deploying to Workers → delete it (the SPA fallback is `not_found_handling` in `wrangler.jsonc`); keep `_redirects` only for Pages hosting |
 | Auth errors mentioning `apikey` header | Old key on new client or vice versa → prefer the `sb_publishable_` key from Settings → API Keys |
 | Project unreachable after idle days | Supabase Free paused it → open dashboard, unpause |
 | 404 on refresh at `/menu/299` etc. | SPA fallback missing → Workers: check `wrangler.jsonc` deployed; Pages: `_redirects`; Vercel: `vercel.json` |

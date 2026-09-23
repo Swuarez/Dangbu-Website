@@ -1,10 +1,17 @@
 {
   // Dangbu — Cloudflare Workers Static Assets config.
   // Deploys dist/ as a static SPA; unmatched paths fall back to index.html.
-  "name": "dangbu-unlimited-samgyupsal",
+  //
+  // IMPORTANT: do NOT ship public/_redirects with this setup. A rule like
+  // "/*  /index.html  200" is rejected by Workers as an infinite loop
+  // (error 100324) because the SPA fallback is handled by
+  // `not_found_handling` below. Cloudflare *Pages* still needs that file —
+  // see DEPLOYMENT.md Option B.
+  "name": "dangbu-website",
   "compatibility_date": "2026-09-23",
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
   }
 }
+
