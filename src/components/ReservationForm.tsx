@@ -32,6 +32,7 @@ import {
 import {
   reservationService,
   formatSlotLabel,
+  newId,
   parseDateKey,
   type Reservation,
 } from "@/services/reservationService";
@@ -88,6 +89,10 @@ export interface ReservationFormProps {
 
 export function ReservationForm({ onSubmitted }: ReservationFormProps) {
   const { intent, clearIntent } = useReservationIntent();
+
+  // Idempotency key: stable for every retry of THIS form session, so a
+  // double click or network retry can never create two bookings.
+  const clientRequestId = React.useRef<string>(newId());
 
   const {
     register,
@@ -164,9 +169,10 @@ export function ReservationForm({ onSubmitted }: ReservationFormProps) {
 
   const submit = async (formValues: ReservationFormValues) => {
     try {
-      const reservation = await reservationService.createReservation(
-        toReservationDraft(formValues),
-      );
+      const reservation = await reservationService.createReservation({
+        ...toReservationDraft(formValues),
+        clientRequestId: clientRequestId.current,
+      });
 
       onSubmitted(reservation);
       toast.success("Reservation request received", {
@@ -174,6 +180,8 @@ export function ReservationForm({ onSubmitted }: ReservationFormProps) {
       });
 
       reset(createDefaultValues({ branchId: formValues.branchId }));
+      // New key for the next, unrelated booking.
+      clientRequestId.current = newId();
     } catch (error) {
       const message =
         error instanceof Error

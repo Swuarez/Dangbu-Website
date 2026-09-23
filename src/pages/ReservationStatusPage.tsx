@@ -1,6 +1,8 @@
-import { ArrowLeft, Hourglass, Search, TriangleAlert } from "lucide-react";
+import { format } from "date-fns";
+import { ArrowLeft, Ban, Hourglass, Loader2, Search, TriangleAlert } from "lucide-react";
 import * as React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { ReservationTicket } from "@/components/ReservationConfirmation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +22,8 @@ export default function ReservationStatusPage() {
   const navigate = useNavigate();
   const [state, setState] = React.useState<LookupState>({ status: "loading" });
   const [query, setQuery] = React.useState(reference);
+  const [confirmCancel, setConfirmCancel] = React.useState(false);
+  const [cancelling, setCancelling] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -40,6 +44,32 @@ export default function ReservationStatusPage() {
     };
   }, [reference]);
 
+  /** Guest self-service cancellation (cancel_reservation_by_reference RPC). */
+  const cancelBooking = async () => {
+    setCancelling(true);
+    try {
+      const cancelled = await reservationService.cancelReservation(reference);
+      if (!cancelled) {
+        toast.error("Could not cancel online", {
+          description: "This booking can no longer be cancelled online. Please call us.",
+        });
+        return;
+      }
+      toast.success("Booking cancelled", {
+        description: `Reservation ${reference.toUpperCase()} has been cancelled.`,
+      });
+      const fresh = await reservationService.getReservation(reference);
+      if (fresh) setState({ status: "found", reservation: fresh });
+    } catch (cause) {
+      toast.error("Could not cancel booking", {
+        description: cause instanceof Error ? cause.message : "Please try again in a moment.",
+      });
+    } finally {
+      setCancelling(false);
+      setConfirmCancel(false);
+    }
+  };
+
   return (
     <div className="shell flex flex-col gap-8 pb-16 pt-24 sm:pt-28 lg:pt-32">
       <Link
@@ -57,7 +87,7 @@ export default function ReservationStatusPage() {
         </h1>
         <p className="copy max-w-[60ch]">
           Look up any Dangbu reservation request with the reference number we issued, for example{" "}
-          <span className="font-semibold text-brass">DANGBU-2026-K7QW4</span>.
+          <span className="font-semibold text-brass">DANGBU-2026-K7QW4X2P</span>.
         </p>
       </header>
 
@@ -111,6 +141,53 @@ export default function ReservationStatusPage() {
               <Link to="/#reservation">Book another table</Link>
             </Button>
           </div>
+
+          {["pending", "confirmed"].includes(state.reservation.status) &&
+          state.reservation.date >= format(new Date(), "yyyy-MM-dd") ? (
+            <div className="mt-5 flex flex-col gap-3 border-t border-bone/10 pt-4">
+              {confirmCancel ? (
+                <>
+                  <p className="copy-sm">
+                    Cancel this booking? This cannot be undone — you would need to book again.
+                  </p>
+                  <div className="flex flex-col gap-2.5 sm:flex-row">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="flex-1 border-ember/40 text-ember-light hover:bg-ember/10"
+                      disabled={cancelling}
+                      onClick={() => void cancelBooking()}
+                    >
+                      {cancelling ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Ban className="size-4" aria-hidden="true" />
+                      )}
+                      {cancelling ? "Cancelling…" : "Yes, cancel this booking"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="lg"
+                      disabled={cancelling}
+                      onClick={() => setConfirmCancel(false)}
+                    >
+                      Keep my booking
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-fit text-ash-text hover:text-ember-light"
+                  onClick={() => setConfirmCancel(true)}
+                >
+                  <Ban className="size-3.5" aria-hidden="true" />
+                  Need to cancel this booking?
+                </Button>
+              )}
+            </div>
+          ) : null}
         </section>
       ) : null}
 

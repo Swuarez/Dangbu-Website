@@ -1,0 +1,23 @@
+# ============================================================
+# Security headers — Cloudflare Pages AND Cloudflare Workers
+# Static Assets both apply rules from this file (it ships with
+# the build because Vite copies public/ into dist/).
+# Vercel ignores this file — equivalent rules live in vercel.json.
+#
+# Notes:
+#  - script-src 'self' blocks injected inline scripts (XSS blast
+#    radius). The JSON-LD block in index.html is a non-executable
+#    data block and is exempt from CSP.
+#  - style-src keeps 'unsafe-inline' because component libraries
+#    (sonner, motion) set inline styles via CSSOM.
+#  - If you enable Cloudflare Web Analytics, add its script origin
+#    (https://static.cloudflareinsights.com) to script-src.
+# ============================================================
+
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests

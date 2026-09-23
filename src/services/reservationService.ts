@@ -1,5 +1,7 @@
 import { differenceInCalendarDays, format, isValid, parse, startOfToday } from "date-fns";
 import { isBranchId } from "@/data/branches";
+import { isSupabaseConfigured } from "@/lib/supabaseClient";
+import { createSupabaseReservationStore } from "@/services/supabaseReservationStore";
 import {
   buildSlotTimes,
   getSlotPeriod,
@@ -12,7 +14,10 @@ import {
    Domain types — the contract shared by the UI and any backend.
    ============================================================ */
 
-export type ReservationStatus = "pending" | "confirmed" | "cancelled";
+export type ReservationStatus = "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
+
+/** Statuses that still hold seats at the branch. */
+const ACTIVE_STATUSES: readonly ReservationStatus[] = ["pending", "confirmed"];
 
 export interface ReservationDraft {
   fullName: string;
@@ -26,12 +31,19 @@ export interface ReservationDraft {
   guests: number;
   packageId: string;
   specialRequest?: string;
+  /**
+   * Idempotency key: generated once per form session and re-sent on
+   * every retry, so a double submit can never create two bookings.
+   */
+  clientRequestId?: string;
 }
 
 export interface Reservation extends ReservationDraft {
   id: string;
   reference: string;
   status: ReservationStatus;
+  /** Staff-only note, never shown to guests. */
+  internalNotes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,17 +82,29 @@ export type ReservationErrorCode =
   | "INVALID_SLOT"
   | "SLOT_UNAVAILABLE"
   | "SLOT_FULL"
+  | "BOOKING_LIMIT"
+  | "RATE_LIMITED"
   | "STORAGE_ERROR"
   | "UNKNOWN";
 /* ============================================================
-   Storage seam — swap this adapter for Firebase / Supabase /
-   Express + PostgreSQL without touching the reservation UI.
+   Storage seam — localStorage for offline/dev, Supabase for
+   production. Swap adapters without touching reservation UI.
    ============================================================ */
 
+/** Seat occupancy for one slot (already filtered to active bookings). */
+export interface SlotOccupancy {
+  time: string;
+  guests: number;
+}
+
 export interface ReservationStore {
-  all(): Reservation[];
-  insert(reservation: Reservation): void;
-  findByReference(reference: string): Reservation | null;
+  /** Active reservations for one branch+date — used for slot availability. */
+  forBranchDate(branchId: string, date: string): Promise<SlotOccupancy[]>;
+  insert(reservation: Reservation): Promise<void>;
+  /** Cancel a guest's own booking by reference. Returns false if not cancellable. */
+  cancelByReference(reference: string): Promise<boolean>;
+  findByReference(reference: string): Promise<Reservation | null>;
+  all(): Promise<Reservation[]>;
 }
 
 function safeParse(value: string | null): Reservation[] {
@@ -111,16 +135,31 @@ export function createLocalStorageStore(
     }
   })();
 
-  const insert = (reservation: Reservation): void => {
-    const next = [...safeParse(available ? window.localStorage.getItem(key) : null), reservation];
+  const all = async (): Promise<Reservation[]> =>
+    available ? safeParse(window.localStorage.getItem(key)) : [...memory];
 
+  const persist = (items: Reservation[]): void => {
     if (!available) {
-      memory.push(reservation);
+      memory.length = 0;
+      memory.push(...items);
+      return;
+    }
+    window.localStorage.setItem(key, JSON.stringify(items));
+  };
+
+  const insert = async (reservation: Reservation): Promise<void> => {
+    const current = await all();
+
+    // Idempotency: retrying the same form submission must not duplicate the booking.
+    if (
+      reservation.clientRequestId &&
+      current.some((item) => item.clientRequestId === reservation.clientRequestId)
+    ) {
       return;
     }
 
     try {
-      window.localStorage.setItem(key, JSON.stringify(next));
+      persist([...current, reservation]);
     } catch {
       throw new ReservationError(
         "STORAGE_ERROR",
@@ -129,15 +168,45 @@ export function createLocalStorageStore(
     }
   };
 
-  const all = (): Reservation[] =>
-    available ? safeParse(window.localStorage.getItem(key)) : [...memory];
-
   return {
     all,
     insert,
-    findByReference(reference) {
+    async forBranchDate(branchId, date) {
+      const items = await all();
+      return items
+        .filter(
+          (item) =>
+            ACTIVE_STATUSES.includes(item.status) &&
+            item.branchId === branchId &&
+            item.date === date,
+        )
+        .map((item) => ({ time: item.time, guests: item.guests }));
+    },
+    async findByReference(reference) {
       const target = reference.trim().toUpperCase();
-      return all().find((item) => item.reference.toUpperCase() === target) ?? null;
+      const items = await all();
+      return items.find((item) => item.reference.toUpperCase() === target) ?? null;
+    },
+    async cancelByReference(reference) {
+      const target = reference.trim().toUpperCase();
+      const todayKey = format(startOfToday(), "yyyy-MM-dd");
+      const items = await all();
+      const index = items.findIndex((item) => item.reference.toUpperCase() === target);
+      if (index < 0) return false;
+
+      const item = items[index];
+      if (!ACTIVE_STATUSES.includes(item.status) || item.date < todayKey) return false;
+
+      items[index] = { ...item, status: "cancelled", updatedAt: new Date().toISOString() };
+      try {
+        persist(items);
+      } catch {
+        throw new ReservationError(
+          "STORAGE_ERROR",
+          "We could not update your reservation on this device. Please call us at 0945 673 2698.",
+        );
+      }
+      return true;
     },
   };
 }
@@ -207,10 +276,10 @@ function referenceAlphabetRandom(length: number): string {
   return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 }
 
-/** e.g. DANGBU-2026-K7QW4 */
+/** e.g. DANGBU-2026-K7QW4X2P — 8-char suffix ≈ 31^8 ≈ 8.5e11 combos (unguessable). */
 export function generateReference(dateKey: string): string {
   const year = parseDateKey(dateKey)?.getFullYear() ?? new Date().getFullYear();
-  return `DANGBU-${year}-${referenceAlphabetRandom(5)}`;
+  return `DANGBU-${year}-${referenceAlphabetRandom(8)}`;
 }
 
 export function newId(): string {
@@ -233,6 +302,8 @@ export interface ReservationService {
   getDateAvailability(dateKey: string): DateAvailability;
   /** Persist a reservation after re-checking availability server-side style. */
   createReservation(draft: ReservationDraft): Promise<Reservation>;
+  /** Guest self-service: cancel an upcoming booking by reference. */
+  cancelReservation(reference: string): Promise<boolean>;
   /** Look up a reservation by its DANGBU reference number. */
   getReservation(reference: string): Promise<Reservation | null>;
   /** All stored reservations (newest first) — handy for a future admin view. */
@@ -262,29 +333,31 @@ function dateError(reason: DateUnavailableReason | undefined): ReservationError 
   }
 }
 
+export interface ReservationServiceOptions {
+  /** Adds a small artificial delay so offline dev still exercises UI states. */
+  simulateLatency?: boolean;
+}
+
 export function createReservationService(
   store: ReservationStore = createLocalStorageStore(),
+  options: ReservationServiceOptions = {},
 ): ReservationService {
-  const seatsBooked = (branchId: string, dateKey: string, time: string): number =>
-    store
-      .all()
-      .filter(
-        (item) =>
-          item.status !== "cancelled" &&
-          item.branchId === branchId &&
-          item.date === dateKey &&
-          item.time === time,
-      )
-      .reduce((total, item) => total + item.guests, 0);
+  const simulateLatency = options.simulateLatency ?? true;
+  const latency = (ms: number) => (simulateLatency ? sleep(ms) : Promise.resolve());
 
-  const buildSlots = (query: SlotQuery): TimeSlot[] => {
+  const buildSlots = async (query: SlotQuery): Promise<TimeSlot[]> => {
     const partySize = Math.max(query.guests || reservationConfig.minGuestsPerReservation, 1);
+    const occupancy = await store.forBranchDate(query.branchId, query.date);
+    const bookedByTime = new Map<string, number>();
+    for (const item of occupancy) {
+      bookedByTime.set(item.time, (bookedByTime.get(item.time) ?? 0) + item.guests);
+    }
 
     return buildSlotTimes().map((time) => {
       const period = getSlotPeriod(time);
       const past = isSlotInThePast(query.date, time);
       const spotsLeft = Math.max(
-        reservationConfig.maxGuestsPerSlot - seatsBooked(query.branchId, query.date, time),
+        reservationConfig.maxGuestsPerSlot - (bookedByTime.get(time) ?? 0),
         0,
       );
       const fits = spotsLeft >= partySize;
@@ -302,12 +375,12 @@ export function createReservationService(
   };
 
   const getAvailableSlots = async (query: SlotQuery): Promise<TimeSlot[]> => {
-    await sleep(Math.round(reservationConfig.simulatedLatencyMs / 2));
+    await latency(Math.round(reservationConfig.simulatedLatencyMs / 2));
     return buildSlots(query);
   };
 
   const createReservation = async (draft: ReservationDraft): Promise<Reservation> => {
-    await sleep(reservationConfig.simulatedLatencyMs);
+    await latency(reservationConfig.simulatedLatencyMs);
 
     if (!isBranchId(draft.branchId)) {
       throw new ReservationError("INVALID_INPUT", "Please select a branch for your reservation.");
@@ -336,11 +409,13 @@ export function createReservationService(
       );
     }
 
-    const slot = buildSlots({
-      branchId: draft.branchId,
-      date: draft.date,
-      guests: draft.guests,
-    }).find((item) => item.time === draft.time);
+    const slot = (
+      await buildSlots({
+        branchId: draft.branchId,
+        date: draft.date,
+        guests: draft.guests,
+      })
+    ).find((item) => item.time === draft.time);
 
     if (!slot || !slot.available) {
       if (slot?.reason === "past") {
@@ -369,7 +444,7 @@ export function createReservationService(
       updatedAt: now,
     };
 
-    store.insert(reservation);
+    await store.insert(reservation);
     return reservation;
   };
 
@@ -377,22 +452,39 @@ export function createReservationService(
     getAvailableSlots,
     getDateAvailability,
     createReservation,
+    async cancelReservation(reference: string) {
+      await latency(Math.round(reservationConfig.simulatedLatencyMs / 3));
+      return store.cancelByReference(reference);
+    },
     async getReservation(reference: string) {
-      await sleep(Math.round(reservationConfig.simulatedLatencyMs / 3));
+      await latency(Math.round(reservationConfig.simulatedLatencyMs / 3));
       return store.findByReference(reference);
     },
     async listReservations() {
-      await sleep(Math.round(reservationConfig.simulatedLatencyMs / 3));
-      return store
-        .all()
-        .slice()
-        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+      await latency(Math.round(reservationConfig.simulatedLatencyMs / 3));
+      const items = await store.all();
+      return items.slice().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     },
   };
 }
 
-/** App-wide singleton. Swap the store argument to plug in a real backend. */
-export const reservationService: ReservationService = createReservationService();
+/* ============================================================
+    Singleton — Supabase when env vars are present, otherwise
+    the offline localStorage adapter (UI code never changes).
+    ============================================================ */
+
+function createDefaultStore(): ReservationStore {
+  if (isSupabaseConfigured) {
+    return createSupabaseReservationStore();
+  }
+  return createLocalStorageStore();
+}
+
+/** App-wide singleton. Backed by Supabase in production, localStorage offline. */
+export const reservationService: ReservationService = createReservationService(
+  createDefaultStore(),
+  { simulateLatency: !isSupabaseConfigured },
+);
 
 
 

@@ -1,17 +1,31 @@
 import { useReducedMotion } from "motion/react";
 import * as React from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
+import { AnnouncementBar } from "@/components/AnnouncementBar";
+import { CookieNotice } from "@/components/CookieNotice";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
+import { RequireAuth } from "@/components/RequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuthProvider } from "@/context/AuthContext";
 import { ReservationIntentProvider } from "@/context/ReservationIntentContext";
 import HomePage from "@/pages/HomePage";
 import NotFoundPage from "@/pages/NotFoundPage";
 
-/** The booking status page is split out of the main bundle. */
+/** Code-split routes: status page, menu viewer, login + staff dashboard. */
 const ReservationStatusPage = React.lazy(() => import("@/pages/ReservationStatusPage"));
+const MenuViewerPage = React.lazy(() => import("@/pages/MenuViewerPage"));
+const PrivacyPolicyPage = React.lazy(() => import("@/pages/PrivacyPolicyPage"));
+const TermsPage = React.lazy(() => import("@/pages/TermsPage"));
+const LoginPage = React.lazy(() => import("@/pages/LoginPage"));
+const DashboardLayout = React.lazy(() => import("@/layouts/DashboardLayout"));
+const DashboardHomePage = React.lazy(() => import("@/pages/dashboard/DashboardHomePage"));
+const ReservationsPage = React.lazy(() => import("@/pages/dashboard/ReservationsPage"));
+const AnnouncementsPage = React.lazy(() => import("@/pages/dashboard/AnnouncementsPage"));
+const StaffPage = React.lazy(() => import("@/pages/dashboard/StaffPage"));
+const SettingsPage = React.lazy(() => import("@/pages/dashboard/SettingsPage"));
 
 /** Keeps hash links (/#menu) and route changes scrolling predictably. */
 function ScrollManager() {
@@ -47,49 +61,84 @@ function RouteFallback() {
   );
 }
 
-export default function App() {
+/** Public chrome: announcement strip on top, navbar, content, footer. */
+function PublicLayout() {
   return (
-    <ReservationIntentProvider>
-      <a
-        href="#main-content"
-        className="sr-only rounded-full border border-brass/50 bg-ink px-4 py-2 font-sans text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-brass focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[200]"
-      >
-        Skip to content
-      </a>
-
-      <div className="flex min-h-dvh flex-col">
-        <Navbar />
-
-        <main id="main-content" className="flex-1">
-          <ScrollManager />
-          <ErrorBoundary>
-            <React.Suspense fallback={<RouteFallback />}>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/reservation/:reference" element={<ReservationStatusPage />} />
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-            </React.Suspense>
-          </ErrorBoundary>
-        </main>
-
-        <Footer />
-      </div>
-
-      <Toaster
-        theme="dark"
-        position="bottom-center"
-        closeButton
-        toastOptions={{
-          style: {
-            background: "linear-gradient(180deg, rgba(34,26,22,0.98) 0%, rgba(11,8,6,0.99) 100%)",
-            border: "1px solid rgba(231,178,76,0.3)",
-            color: "#f8f1e6",
-            borderRadius: "14px",
-            padding: "14px 16px",
-          },
-        }}
-      />
-    </ReservationIntentProvider>
+    <div className="flex min-h-dvh flex-col">
+      <AnnouncementBar />
+      <Navbar />
+      <main id="main-content" className="flex-1">
+        <Outlet />
+      </main>
+      <Footer />
+      <CookieNotice />
+    </div>
   );
 }
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ReservationIntentProvider>
+        <a
+          href="#main-content"
+          className="sr-only rounded-full border border-brass/50 bg-ink px-4 py-2 font-sans text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-brass focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[200]"
+        >
+          Skip to content
+        </a>
+
+        <ScrollManager />
+        <ErrorBoundary>
+          <React.Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route element={<PublicLayout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/reservation/:reference" element={<ReservationStatusPage />} />
+                <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+
+              {/* Full-screen menu viewer fallback route, no site chrome */}
+              <Route path="/menu/:package" element={<MenuViewerPage />} />
+
+              {/* Staff area */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <RequireAuth>
+                    <DashboardLayout />
+                  </RequireAuth>
+                }
+              >
+                <Route index element={<DashboardHomePage />} />
+                <Route path="reservations" element={<ReservationsPage />} />
+                <Route path="announcements" element={<AnnouncementsPage />} />
+                <Route path="staff" element={<StaffPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
+            </Routes>
+          </React.Suspense>
+        </ErrorBoundary>
+
+        <Toaster
+          theme="dark"
+          position="bottom-center"
+          closeButton
+          toastOptions={{
+            style: {
+              background:
+                "linear-gradient(180deg, rgba(34,26,22,0.98) 0%, rgba(11,8,6,0.99) 100%)",
+              border: "1px solid rgba(231,178,76,0.3)",
+              color: "#f8f1e6",
+              borderRadius: "14px",
+              padding: "14px 16px",
+            },
+          }}
+        />
+      </ReservationIntentProvider>
+    </AuthProvider>
+  );
+}
+

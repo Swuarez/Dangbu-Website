@@ -29,6 +29,7 @@ export default defineConfig({
           "react-vendor": ["react", "react-dom", "react-router-dom"],
           motion: ["motion"],
           forms: ["react-hook-form", "zod", "@hookform/resolvers"],
+          supabase: ["@supabase/supabase-js"],
           ui: [
             "@radix-ui/react-dialog",
             "@radix-ui/react-select",

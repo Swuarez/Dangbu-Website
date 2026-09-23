@@ -1,7 +1,9 @@
-import { Clock, Flame, MapPin, Utensils } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Beer, ChevronRight, Clock, Flame, Heart, MapPin, PartyPopper, Users, Utensils } from "lucide-react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { EmberField } from "@/components/EmberField";
 import { PriceStrip } from "@/components/PriceStrip";
+import { RevealGroup, RevealItem } from "@/components/Reveal";
 import { Button } from "@/components/ui/button";
 import { useReservationIntent } from "@/context/ReservationIntentContext";
 import { menuPackages } from "@/data/menu";
@@ -20,6 +22,15 @@ const HERO_FACTS = [
   { icon: Clock, label: site.hours },
   { icon: MapPin, label: "2 branches in Quezon City" },
   { icon: Utensils, label: "4 unlimited packages · ₱299 – ₱499" },
+];
+
+/** Merged from the former standalone Occasions section — kept compact so the hero stays the star.
+ *  Lucide stroke icons keep the brand's linework consistent (no emoji, no mixed weights). */
+const OCCASIONS: { title: string; blurb: string; icon: LucideIcon }[] = [
+  { title: "Family", blurb: "Big tables, unli refills", icon: Users },
+  { title: "Friends", blurb: "Barkada nights done right", icon: Beer },
+  { title: "Dates", blurb: "A cozy grill for two", icon: Heart },
+  { title: "Celebrations", blurb: "Birthdays & milestones", icon: PartyPopper },
 ];
 
 function SealBadge() {
@@ -49,12 +60,19 @@ function SealBadge() {
             transformOrigin: "center",
           }}
         >
-          <text fill="rgba(248,221,160,0.85)" fontSize="15" fontWeight="600" letterSpacing="4.5">
-            <textPath href="#dangbu-seal-path" startOffset="0%">
-              Come hungry · Leave satisfied ·
-            </textPath>
-            <textPath href="#dangbu-seal-path" startOffset="50%">
-              All-unlimited Korean BBQ ·
+          {/*
+            One textPath stretched to the exact circumference of the r=74
+            circle (2π · 74 ≈ 465) so the glyphs distribute evenly with no
+            overlap or gap — two half-path segments never added up to 50%.
+          */}
+          <text fill="rgba(248,221,160,0.85)" fontSize="15" fontWeight="600">
+            <textPath
+              href="#dangbu-seal-path"
+              startOffset="0"
+              textLength="465"
+              lengthAdjust="spacingAndGlyphs"
+            >
+              Come hungry · Leave satisfied · All-unlimited Korean BBQ ·
             </textPath>
           </text>
         </g>
@@ -258,6 +276,56 @@ export function Hero() {
             </p>
           </motion.div>
         </div>
+
+        {/* ---- occasions ribbon (merged from the former standalone section) ---- */}
+        <RevealGroup
+          className="flex flex-col gap-4 border-t border-bone/8 pt-7 sm:pt-8"
+          stagger={0.07}
+          amount={0.25}
+        >
+          <RevealItem>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1.5">
+              <p className="eyebrow text-brass/85">One grill · every gathering</p>
+              <p className="text-[0.7rem] text-ash-text sm:text-[0.74rem]">
+                Good food. Good people. <span className="text-brass/80">Good times.</span>
+              </p>
+            </div>
+          </RevealItem>
+
+          <ul className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+            {OCCASIONS.map((occasion) => (
+              <li key={occasion.title} className="h-full">
+                <RevealItem className="h-full">
+                  <button
+                    type="button"
+                    onClick={() => requestReservation()}
+                    aria-label={`Reserve a table for ${occasion.title.toLowerCase()}`}
+                    className="group flex h-full w-full items-center gap-3 rounded-xl border border-bone/8 bg-bone/[0.025] px-3.5 py-3 text-left transition-[border-color,background-color,transform] duration-500 ease-[cubic-bezier(.22,1,.36,1)] will-change-transform hover:-translate-y-0.5 hover:border-brass/40 hover:bg-bone/[0.05] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brass sm:px-4"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="grid size-10 shrink-0 place-items-center rounded-lg border border-brass/25 bg-[linear-gradient(160deg,rgba(231,178,76,0.16),rgba(225,34,31,0.14))] text-brass transition-all duration-500 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-110 group-hover:-rotate-3 group-hover:border-brass/50 group-hover:text-brass-light group-hover:shadow-[0_0_18px_-4px_rgba(231,178,76,0.55)] sm:size-11"
+                    >
+                      <occasion.icon className="size-[1.15rem] sm:size-5" strokeWidth={1.75} aria-hidden="true" />
+                    </span>
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="font-display text-[0.82rem] uppercase tracking-[0.08em] text-bone sm:text-[0.92rem]">
+                        {occasion.title}
+                      </span>
+                      <span className="text-[0.68rem] leading-snug text-ash-text sm:text-[0.72rem]">
+                        {occasion.blurb}
+                      </span>
+                    </span>
+                    <ChevronRight
+                      className="ml-auto size-3.5 shrink-0 text-brass/0 transition-[color,transform] duration-300 group-hover:translate-x-0.5 group-hover:text-brass/80"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </RevealItem>
+              </li>
+            ))}
+          </ul>
+        </RevealGroup>
       </div>
 
       <PriceStrip />

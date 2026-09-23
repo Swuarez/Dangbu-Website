@@ -225,6 +225,16 @@
   }
 }
 
+/* Slow ember drift for the global ambient glow layer (GPU-composited). */
+@keyframes ambient-drift {
+  from {
+    transform: translate3d(-2%, -1.5%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 1.5%, 0) scale(1.045);
+  }
+}
+
 /* ============================================================
    shadcn/ui semantic tokens (the site is intentionally dark-only)
    ============================================================ */
@@ -319,6 +329,40 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     font-variant-ligatures: common-ligatures;
+  }
+
+  /* ---- Global charcoal-house atmosphere ----
+     Fixed behind every section: warm ember + brass glows in the corners
+     (like heat bleeding off tabletop grills) over a faint lacquer wash,
+     so no stretch of the page ever reads as flat black. Sections with
+     their own gradients are translucent enough to let this bleed through. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -12%;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      radial-gradient(42% 34% at 10% 6%, rgba(225, 34, 31, 0.16), transparent 70%),
+      radial-gradient(38% 30% at 90% 20%, rgba(231, 178, 76, 0.1), transparent 70%),
+      radial-gradient(52% 40% at 80% 84%, rgba(161, 16, 26, 0.18), transparent 72%),
+      radial-gradient(46% 36% at 16% 94%, rgba(231, 178, 76, 0.09), transparent 70%),
+      linear-gradient(180deg, transparent 0%, rgba(124, 11, 18, 0.06) 50%, transparent 100%);
+    animation: ambient-drift 32s ease-in-out infinite alternate;
+  }
+
+  /* Film grain over the whole page — the same texture sections use,
+     applied once globally so plain sections share the tactile finish. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.055;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/></filter><rect width='180' height='180' filter='url(%23n)' opacity='0.5'/></svg>");
+    background-repeat: repeat;
   }
 
   h1,

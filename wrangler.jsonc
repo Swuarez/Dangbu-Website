@@ -1,0 +1,10 @@
+{
+  // Dangbu — Cloudflare Workers Static Assets config.
+  // Deploys dist/ as a static SPA; unmatched paths fall back to index.html.
+  "name": "dangbu-unlimited-samgyupsal",
+  "compatibility_date": "2026-09-23",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

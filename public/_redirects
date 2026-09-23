@@ -1,0 +1,4 @@
+# SPA fallback for Cloudflare Pages (and Netlify):
+# every client-side route (/, /menu/299, /login, /dashboard/…)
+# serves index.html so React Router can take over.
+/*    /index.html   200

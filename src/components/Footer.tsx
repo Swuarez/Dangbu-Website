@@ -126,10 +126,30 @@ export function Footer() {
         <div className="flex flex-col gap-4 border-t border-bone/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[0.76rem] text-ash-text">{site.copyright}</p>
 
-          <Button variant="ghost" size="sm" onClick={scrollToTop} className="self-start sm:self-auto">
-            <ArrowUp className="size-3.5" aria-hidden="true" />
-            Back to top
-          </Button>
+          <div className="flex flex-wrap items-center gap-4 self-start sm:self-auto">
+            <Link
+              to="/privacy"
+              className="text-[0.68rem] uppercase tracking-[0.18em] text-ash-text/70 transition-colors hover:text-brass focus-visible:outline-2 focus-visible:outline-brass"
+            >
+              Privacy
+            </Link>
+            <Link
+              to="/terms"
+              className="text-[0.68rem] uppercase tracking-[0.18em] text-ash-text/70 transition-colors hover:text-brass focus-visible:outline-2 focus-visible:outline-brass"
+            >
+              Terms
+            </Link>
+            <Link
+              to="/login"
+              className="text-[0.68rem] uppercase tracking-[0.18em] text-ash-text/70 transition-colors hover:text-brass focus-visible:outline-2 focus-visible:outline-brass"
+            >
+              Staff login
+            </Link>
+            <Button variant="ghost" size="sm" onClick={scrollToTop}>
+              <ArrowUp className="size-3.5" aria-hidden="true" />
+              Back to top
+            </Button>
+          </div>
         </div>
       </div>
     </footer>

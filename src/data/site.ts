@@ -61,9 +61,8 @@ export const navLinks: NavLink[] = [
 /** Sections observed by the navbar for active-link indication (document order). */
 export const sectionIds = [
   "home",
-  "experience",
   "menu",
-  "occasions",
+  "experience",
   "reservation",
   "branches",
   "contact",
