@@ -57,7 +57,7 @@ No paid backend server, no paid APIs, no credit card required for the services b
 2. Paste the entire contents of [`supabase/migrations/0001_initial_schema.sql`](supabase/migrations/0001_initial_schema.sql) and **Run**.
    - Creates `staff_profiles`, `reservations`, `announcements`
    - Enables Row Level Security on all tables
-   - Creates the `slot_usage` view (anonymous-safe seat counts, no personal data)
+   - Creates the `slot_usage_for_branch_date` function (anonymous-safe seat counts, no personal data)
    - Creates the `reservation_by_reference` lookup function for guests
 3. Paste the entire contents of [`supabase/migrations/0003_security_hardening.sql`](supabase/migrations/0003_security_hardening.sql) and **Run**.
    - Adds the `client_request_id` idempotency key (duplicate-submit guard)
@@ -65,7 +65,10 @@ No paid backend server, no paid APIs, no credit card required for the services b
    - Adds a per-mobile booking throttle trigger (3 active bookings/day, 10 requests/day)
    - Adds `cancel_reservation_by_reference()` so guests can cancel their own booking
    - Adds the `audit_log` table + trigger recording staff reservation changes
-4. Confirm: **Table Editor** lists four tables (`staff_profiles`, `reservations`, `announcements`, `audit_log`).
+4. Paste the entire contents of [`supabase/migrations/0004_slot_usage_rpc.sql`](supabase/migrations/0004_slot_usage_rpc.sql) and **Run**.
+   - Drops the old `slot_usage` view — Supabase Advisor flags it CRITICAL (*Security Definer View*)
+   - Creates the equivalent `slot_usage_for_branch_date` RPC: same PII-free seat counts, explicit boundary
+5. Confirm: **Table Editor** lists four tables (`staff_profiles`, `reservations`, `announcements`, `audit_log`).
 
 ## Step 3 — Create the owner (and staff) login accounts
 
@@ -112,13 +115,64 @@ git push -u origin main
 
 `.env` is git-ignored; only `.env.example` (placeholders, no secrets) is committed.
 
-## Step 7 — Deploy the frontend (choose one, all free)
+## Step 7 — Deploy the frontend (pick one host)
 
-### Option A — Cloudflare Workers Static Assets (recommended; current Cloudflare standard)
+> **Which host?** All three options deploy from this repo unchanged — `vercel.json` (Vercel),
+> `wrangler.jsonc` (Cloudflare Workers), and a re-creatable `_redirects` (Cloudflare Pages).
+> Pick **A** if you want Vercel; pick **B/C** if the site is commercial and you want a free tier
+> that permits commercial use.
+
+### Option A — Vercel
+
+> ⚖️ **Read the plan note first.** Vercel's Hobby docs state: *"As stated in the fair use guidelines,
+> the Hobby plan restricts users to non-commercial, personal use only."* A restaurant website that
+> promotes a business and takes bookings is commercial use, so the compliant choices are
+> **Vercel Pro** (paid) or a **free tier that allows commercial use (Cloudflare — Options B/C)**.
+> Vercel pauses accounts for policy violations, so choose deliberately. Everything below works
+> identically on Pro.
+
+**Steps (dashboard, git-connected → auto-deploys on push):**
+
+1. <https://vercel.com/new> → **Import Git Repository** → select the repo (authorise GitHub if asked).
+2. Vercel detects **Vite**. Confirm these under *Build and Output Settings* — they are also pinned in
+   [`vercel.json`](vercel.json), so the dashboard cannot silently drift from the repo:
+   - Framework preset: **Vite**
+   - Build command: `npm run build`
+   - Output directory: `dist`
+   - Install command: `npm install`
+3. **Environment Variables** — add both, for **Production**, **Preview** and **Development**
+   (Vite inlines env at build time, so a missing Production value means the live site shows
+   "Dashboard not configured"):
+   - `VITE_SUPABASE_URL` = `https://<project-ref>.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY` = `sb_publishable_…` (publishable key only — never the secret/service key)
+4. **Deploy** (first build ≈ 1–2 minutes). You get `https://<project>.vercel.app`.
+5. **Add your domain**: Project → **Settings → Domains** → add e.g. `dangbu.ph` (and `www`) → follow
+   the DNS instructions. Vercel issues and renews the TLS certificate automatically, so HTTPS is on
+   from the first request, and Vercel sends HSTS for its own domains.
+6. [`vercel.json`](vercel.json) supplies the rest — nothing else to configure:
+   - SPA rewrites, so `/menu/299`, `/privacy`, `/terms` and `/reservation/…` survive a hard refresh
+   - Security headers: CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`
+
+**CLI alternative:**
+
+```bash
+npm i -g vercel
+vercel          # preview deployment (own URL, great for checking a change)
+vercel --prod   # production deployment
+```
+
+> ℹ️ `public/_headers` is a Cloudflare/Netlify convention — **Vercel ignores it** (it is uploaded as
+> an inert text file). On Vercel the equivalent headers live in `vercel.json`. Verify with `curl -I`
+> (Step 10); no repo change is needed for Vercel.
+
+**After the first deploy:** finish Step 8 (Supabase → Authentication → URL Configuration), otherwise
+staff login on the live domain can be rejected.
+
+### Option B — Cloudflare Workers Static Assets (recommended; current Cloudflare standard)
 
 Cloudflare's current recommendation for static sites is **Workers with Static Assets** (Pages remains supported, but new features land on Workers). This repo ships a ready [`wrangler.jsonc`](wrangler.jsonc) that points at `dist/` and enables SPA fallback (`not_found_handling = "single-page-application"`).
 
-> ⚠️ **Do not add `public/_redirects` when deploying to Workers.** A rule like `/*  /index.html  200` is rejected by the Workers upload with *"Infinite loop detected in this rule"* (**error 100324**) — that file is a Cloudflare **Pages** feature. It has been removed from this repo on purpose; the SPA fallback comes from `not_found_handling` instead (see Option B if you ever switch to Pages).
+> ⚠️ **Do not add `public/_redirects` when deploying to Workers.** A rule like `/*  /index.html  200` is rejected by the Workers upload with *"Infinite loop detected in this rule"* (**error 100324**) — that file is a Cloudflare **Pages** feature. It has been removed from this repo on purpose; the SPA fallback comes from `not_found_handling` instead (see Option C if you ever switch to Pages).
 
 **From the dashboard (git-connected, auto-deploys on push):**
 
@@ -136,7 +190,7 @@ npm run build
 npx wrangler deploy        # first run asks you to log in to Cloudflare
 ```
 
-### Option B — Cloudflare Pages (classic; still fully supported)
+### Option C — Cloudflare Pages (classic; still supported)
 
 1. <https://pages.cloudflare.com> → **Create → Pages → Connect to Git** → select the repo.
 2. Build settings: framework preset **Vite**, build command `npm run build`, output directory `dist`.
@@ -149,18 +203,16 @@ npx wrangler deploy        # first run asks you to log in to Cloudflare
 
 5. Deploy. SPA routing then works for `/menu/299`, `/privacy` and `/reservation/…` on hard refresh.
 
-### Option C — Vercel Hobby (non-commercial use only per Vercel's terms)
-
-1. <https://vercel.com/new> → import the repo.
-2. Framework preset: **Vite** (build `npm run build`, output `dist` — auto-detected).
-3. Add the two environment variables.
-4. Deploy. SPA routing works via the included `vercel.json` rewrites.
-
 ## Step 8 — Supabase auth redirect URLs
 
 1. Supabase dashboard → **Authentication → URL Configuration**.
-2. Set **Site URL** to your deployed URL (e.g. `https://your-site.workers.dev`).
-3. Add `https://your-site.workers.dev/**` to **Redirect URLs**.
+2. Set **Site URL** to your deployed URL — Vercel: `https://<project>.vercel.app` (or your custom
+   domain, e.g. `https://dangbu.ph`); Cloudflare: `https://<worker>.workers.dev`.
+3. Add your host's URLs to **Redirect URLs**:
+   - Vercel production: `https://dangbu.ph/**` and `https://www.dangbu.ph/**`
+   - Vercel preview deployments (optional — lets you test staff login on preview builds):
+     `https://<project>-*.vercel.app/**`
+   - Cloudflare: `https://<worker>.workers.dev/**`
    - This app signs in with email + password, so redirects only matter for future magic-link/recovery flows — setting them now avoids surprises.
 
 ## Step 9 — Test everything
@@ -172,6 +224,8 @@ Public website:
 - [ ] Each menu card opens the menu modal; `/menu/299`, `/menu/399`, `/menu/459`, `/menu/499` show the complete posters directly (also on hard refresh — proves the SPA fallback works)
 - [ ] Reservation form: branch/date/time, live slot availability, confirmation ticket with a `DANGBU-YYYY-XXXXXXXX` (8-char) reference
 - [ ] Booking status page `/reservation/<reference>` finds the booking
+- [ ] Hosting: deep links survive a hard refresh — Vercel: `https://<project>.vercel.app/privacy`;
+      Cloudflare Workers: `/<worker>/menu/299`; Pages: same (proves the SPA fallback config)
 - [ ] Status page shows **Need to cancel this booking?** for upcoming bookings and cancels on confirm
 - [ ] `/privacy` and `/terms` load from the footer links; the storage notice appears once and stays dismissed
 
@@ -204,17 +258,25 @@ Security spot-checks:
 The app ships hardened (see [SECURITY.md](SECURITY.md)), but these controls are
 dashboard-side and must be switched on by hand.
 
-**Edge / CDN (Cloudflare — or your host's equivalents):**
+**Edge / CDN — do the part that matches your host:**
+
+*Deployed on **Vercel** (Option A):*
+
+1. HTTPS/TLS and DDoS mitigation are automatic on every deployment — nothing to switch on.
+2. **Project → Firewall**: review the built-in protection. Custom WAF rules, IP blocking and bot
+   management are plan features (Pro and above), so check what your plan includes.
+3. Optional but recommended: **Settings → Deployment Protection** to password-protect preview URLs,
+   so unfinished builds aren't indexed or shared.
+4. Verify the headers arrived: `curl -I https://your-domain` (they come from `vercel.json`).
+
+*Deployed on **Cloudflare** (Option B/C):*
 
 1. **SSL/TLS → Edge Certificates**: enable **Always Use HTTPS** and **HSTS**
    (max-age ≥ 6 months, include subdomains, preload once you are sure about every subdomain).
 2. **Security → WAF**: enable the **Cloudflare Managed Ruleset** (free plan) and **Bot Fight Mode**.
 3. **Security → WAF → Rate limiting rules**: add a rule like
    *path `/rest/v1/reservations` → 10 requests / minute / IP → block* if your plan supports it.
-4. Verify the headers actually arrive:
-   `curl -I https://your-site` should show `strict-transport-security`, `content-security-policy`,
-   `x-content-type-options`, `x-frame-options`, `referrer-policy` (these come from
-   `public/_headers` on Cloudflare, or `vercel.json` on Vercel).
+4. Verify the headers arrived: `curl -I https://your-domain` (they come from `public/_headers`).
 
 **Supabase dashboard:**
 
@@ -239,7 +301,7 @@ dashboard-side and must be switched on by hand.
 - **No polling** — dashboard and announcement bar use one Realtime channel each, open only while mounted, always removed on unmount.
 - **Pagination** — reservation lists load 15 rows at a time, not the whole table.
 - **Minimal columns** — queries select only the fields the UI renders; dashboard stats use head-only `COUNT` queries.
-- **PII-free public reads** — guests never read the `reservations` table; availability comes from the aggregate `slot_usage` view, status checks go through `reservation_by_reference`.
+- **PII-free public reads** — guests never read the `reservations` table; availability comes from the aggregate `slot_usage_for_branch_date` function, status checks go through `reservation_by_reference`.
 - **Local assets** — menu posters are bundled static files, not metered storage/CDN.
 - **Realtime limits** — `eventsPerSecond` capped at 5 in the client config. Note: anonymous (publishable-key) Realtime connections are limited to 24 hours by Supabase; page reloads reconnect automatically.
 

@@ -50,7 +50,7 @@ export interface DbReservationInsert {
   status: "pending";
 }
 
-/** Aggregate per-slot seat usage — exposed to anon via the slot_usage view. */
+/** Aggregate per-slot seat usage — returned by the `slot_usage_for_branch_date` RPC. */
 export interface DbSlotUsage {
   branch_id: string;
   reservation_date: string;

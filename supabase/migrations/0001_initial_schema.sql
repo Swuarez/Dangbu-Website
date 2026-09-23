@@ -196,23 +196,41 @@ create policy "staff delete announcements"
   using (public.is_staff());
 
 -- ============================================================
--- PII-FREE AGGREGATE VIEW for public slot availability.
--- Exposes only branch + date + time + total booked guests, so
+-- PII-FREE AGGREGATE RPC for public slot availability.
+-- Exposes only time + total booked guests for ONE branch+date, so
 -- the booking form can disable full slots without ever reading
 -- guest personal data.
+--
+-- Why a function and not a view: a view defined with
+-- security_invoker = false enforces the permissions/RLS of the view
+-- CREATOR instead of the querying user, which Supabase's Security
+-- Advisor flags as CRITICAL ("Security Definer View"). A SECURITY
+-- DEFINER function is the explicit, auditable equivalent — same
+-- public information, declared privilege boundary.
+-- (Migration 0004 drops the old view on projects that already have it.)
 -- ============================================================
-create or replace view public.slot_usage
-with (security_invoker = false) as
+create or replace function public.slot_usage_for_branch_date(
+  p_branch_id text,
+  p_date date
+)
+returns table (reservation_time time, booked_guests int)
+language sql
+security definer
+set search_path = public
+stable
+as $$
   select
-    branch_id,
-    reservation_date,
-    reservation_time,
-    sum(guests)::int as booked_guests
-  from public.reservations
-  where status in ('pending', 'confirmed')
-  group by branch_id, reservation_date, reservation_time;
+    r.reservation_time,
+    sum(r.guests)::int as booked_guests
+  from public.reservations r
+  where r.branch_id = p_branch_id
+    and r.reservation_date = p_date
+    and r.status in ('pending', 'confirmed')
+  group by r.reservation_time;
+$$;
 
-grant select on public.slot_usage to anon, authenticated;
+revoke all on function public.slot_usage_for_branch_date(text, date) from public;
+grant execute on function public.slot_usage_for_branch_date(text, date) to anon, authenticated;
 
 -- ============================================================
 -- Guest booking lookup by reference number (security definer).

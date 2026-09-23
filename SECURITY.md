@@ -14,7 +14,7 @@ in code, and what still requires manual configuration in a dashboard.
 | Transport | HTTPS everywhere + `Strict-Transport-Security` (§3), `upgrade-insecure-requests` in the CSP. |
 | Auth | Supabase Auth (email + password). Passwords are hashed with **bcrypt inside Supabase** — no password ever touches our code or database. Sessions are short-lived JWTs that auto-refresh. |
 | Authorization | **Row Level Security on every table.** The browser only ever holds the publishable (anon) key; RLS decides what it can read/write. Role checks (`staff`, `owner`) run in `security definer` helpers, never from client claims. |
-| Guest PII | Public reads are PII-free: slot availability comes from the `slot_usage` aggregate view; a guest's own booking is reachable only through `reservation_by_reference()` with the reference number. |
+| Guest PII | Public reads are PII-free: slot availability comes from the `slot_usage_for_branch_date` aggregate RPC; a guest's own booking is reachable only through `reservation_by_reference()` with the reference number. |
 | Input | Zod schema client-side **plus** CHECK constraints server-side (migration `0003`). |
 | Output | React escapes all rendered text; no `innerHTML`, `dangerouslySetInnerHTML`, `eval`, or `new Function` anywhere in the codebase. Announcement links are allow-listed to `https://` or site-relative paths. |
 | Abuse control | Per-mobile booking throttle, booking idempotency, login backoff, Supabase auth rate limits, Cloudflare WAF/Bot Fight (manual). |
@@ -38,6 +38,25 @@ in code, and what still requires manual configuration in a dashboard.
 ---
 
 ## 2. Findings and fixes
+
+### SEC-00 · Critical — SECURITY DEFINER view `slot_usage` (Supabase Security Advisor)
+
+*Finding:* slot availability was exposed as
+`create view public.slot_usage with (security_invoker = false)`. A view created that way runs with
+the **view creator's** permissions and RLS context, so every anon query silently bypassed the
+querying user's policies. Supabase's linter reports this as CRITICAL because the escalation is
+implicit — exactly the kind of thing that goes unnoticed when someone later adds a column to the
+underlying table.
+*Status:* **Fixed** — migration `0004_slot_usage_rpc.sql` drops the view and replaces it with
+`slot_usage_for_branch_date(p_branch_id text, p_date date)`, a `SECURITY DEFINER` **function** that
+returns only `reservation_time` + summed `booked_guests` for one branch and date. Same publicly
+visible information, but the boundary is now explicit, scoped to two parameters, and declared;
+`EXECUTE` is revoked from `PUBLIC` and granted only to `anon` / `authenticated`. The frontend was
+switched to `supabase.rpc("slot_usage_for_branch_date", …)`, and `0001_initial_schema.sql` was
+updated so fresh installs never create the definer view in the first place.
+*Manual:* run `0004` in the SQL Editor, then **Advisors → Security → Rerun linter** — the finding
+disappears. Deploy the updated frontend at the same time (the old build reads the view, the new
+build calls the RPC).
 
 ### SEC-01 · Low — Real Supabase project URL + publishable key in `.env.example`
 
@@ -150,6 +169,17 @@ Worker) plus CSRF protection; not worth it for a reservation-only site.
 
 The code cannot do these — they live in dashboards:
 
+**If you deploy on Vercel:**
+
+- [ ] Project → Settings → Environment Variables: both `VITE_*` values set for **Production** *and* **Preview**
+- [ ] Project → Settings → Domains: custom domain added (Vercel issues and renews TLS automatically, so HTTPS is forced)
+- [ ] Project → Firewall: review DDoS/bot protection — custom WAF rules and bot management are plan features (Pro+)
+- [ ] Settings → Deployment Protection: preview URLs protected (optional, recommended)
+- [ ] `curl -I https://your-domain` shows the five headers (they come from `vercel.json`; `public/_headers` is inert on Vercel)
+- [ ] Plan check: Hobby is **non-commercial only** — use Pro for a business site
+
+**If you deploy on Cloudflare:**
+
 - [ ] Cloudflare → SSL/TLS → **Always Use HTTPS** ON
 - [ ] Cloudflare → SSL/TLS → Edge Certificates → **HSTS** ON (≥ 6 months, includeSubDomains, preload)
 - [ ] Cloudflare → Security → WAF → **Cloudflare Managed Ruleset** ON (free) + **Bot Fight Mode** ON
@@ -166,6 +196,7 @@ The code cannot do these — they live in dashboards:
 - [ ] Supabase → Database → every table shows the RLS badge (`staff_profiles`, `reservations`,
       `announcements`, `audit_log`)
 - [ ] Supabase → Database → export `reservations` to CSV periodically (free tier has no PITR backups)
+- [ ] Supabase → **Advisors → Security → Rerun linter**: no Critical/High findings left (SEC-00 gone)
 - [ ] `curl -I https://your-site` shows the five security headers
 - [ ] Browser console clean of CSP violations after deploy (home, menu modal, booking, dashboard)
 - [ ] `npm audit` clean before each deploy
@@ -191,7 +222,9 @@ The code cannot do these — they live in dashboards:
 
 *Verified on completion: `npx tsc --noEmit` → exit 0, `npx vite build` → exit 0 (dist includes
 `_headers`), `npm audit` → 0 vulnerabilities, `git grep` for live credentials → no tracked matches,
-built `index.html` contains one external module script plus the CSP-exempt JSON-LD data block.*
+built `index.html` contains one external module script plus the CSP-exempt JSON-LD data block.
+(`slot_usage` is now the `slot_usage_for_branch_date` RPC — migration `0004` resolves the
+Supabase Advisor's *Security Definer View* finding; re-run the linter after applying it.)*
 
 
 

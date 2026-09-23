@@ -90,7 +90,7 @@ all data. The `service_role` / secret key must **never** be used in this app.
 
 1. Create a free Supabase project.
 2. SQL Editor → run `supabase/migrations/0001_initial_schema.sql` (tables, RLS policies,
-   `slot_usage` view, `reservation_by_reference` function).
+   `slot_usage_for_branch_date` + `reservation_by_reference` functions).
 3. Authentication → Users → Add user (owner) → copy the UUID.
 4. SQL Editor → run `0002_first_owner.sql` with that UUID pasted in.
 5. SQL Editor → run `0003_security_hardening.sql` (idempotency key, server-side input
@@ -102,7 +102,7 @@ all data. The `service_role` / secret key must **never** be used in this app.
 
 Full audit, fixes and the manual dashboard checklist live in **[SECURITY.md](SECURITY.md)**.
 Already in place: security headers (`public/_headers` + `vercel.json`), RLS on every table,
-PII-free public views, server-side input validation, booking idempotency + throttling,
+PII-free public aggregates (RPCs), server-side input validation, booking idempotency + throttling,
 audit logging, and Privacy Policy / Terms pages.
 
 Full walkthrough: **[DEPLOYMENT.md](DEPLOYMENT.md)**.
@@ -119,9 +119,14 @@ npm run preview     # serve the production build locally
 ## Free deployment (summary)
 
 1. Push to GitHub.
-2. **Cloudflare Pages**: connect repo → Vite preset → build `npm run build`, output `dist`
-   → add the two env vars → deploy (SPA fallback via `public/_redirects`).
-   *or* **Vercel Hobby**: import repo → env vars → deploy (SPA fallback via `vercel.json`).
+2. **Vercel**: import the repo → Vite preset (build `npm run build`, output `dist`) → add the two
+   env vars for **Production *and* Preview** → deploy. SPA fallback + security headers come from
+   `vercel.json`.
+   ⚠️ Vercel's Hobby plan is *"non-commercial, personal use only"* — for a business site use Vercel
+   Pro, or one of the free Cloudflare paths below.
+   *or* **Cloudflare Workers** (free, commercial use OK): `wrangler.jsonc` handles the SPA fallback —
+   never add `_redirects` there (error 100324).
+   *or* **Cloudflare Pages**: same repo, but re-create `public/_redirects` as `/*  /index.html  200`.
 3. Add the deployed URL in Supabase → Authentication → URL Configuration.
 4. Run the acceptance checklist in DEPLOYMENT.md.
 
@@ -133,6 +138,8 @@ npm run preview     # serve the production build locally
 - **White screen / wrong data after adding env vars** — restart `npm run dev`; Vite reads
   env vars only at startup.
 - **"Dashboard not configured"** — env vars missing or containing the placeholder URL.
+- **Works locally but "Dashboard not configured" on Vercel** — the variables were only added to
+  *Preview*: Vite inlines env at build time, so add them to **Production** too and redeploy.
 - **Login works but dashboard says "No staff access"** — the user's UUID has no row in
   `staff_profiles` (run migration 0002 or use the Staff page as owner).
 - **RLS errors in dashboard** — migration 0001 was not run (or ran in another project).

@@ -16,7 +16,8 @@ import {
  * Production reservation store backed by Supabase (PostgreSQL + RLS).
  *
  * Guest-facing reads are deliberately narrow and PII-free:
- *  - slot availability comes from the `slot_usage` VIEW (aggregate only)
+ *  - slot availability comes from the `slot_usage_for_branch_date` RPC
+ *    (aggregate only: times + seats for one branch+date, no PII)
  *  - booking lookup goes through the `reservation_by_reference` RPC
  * Writes are plain INSERTs allowed by the anon policy (status='pending').
  * Staff reads/updates happen in staffService with an authenticated session.
@@ -34,11 +35,10 @@ export function createSupabaseReservationStore(): ReservationStore {
 
   return {
     async forBranchDate(branchId, date): Promise<SlotOccupancy[]> {
-      const { data, error } = await client()
-        .from("slot_usage")
-        .select("reservation_time, booked_guests")
-        .eq("branch_id", branchId)
-        .eq("reservation_date", date);
+      const { data, error } = await client().rpc("slot_usage_for_branch_date", {
+        p_branch_id: branchId,
+        p_date: date,
+      });
 
       if (error) {
         throw new ReservationError(

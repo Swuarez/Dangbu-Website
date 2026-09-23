@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "description": "Dangbu Unlimited Samgyupsal & Buffet - unlimited Korean BBQ restaurant website with online table reservations.",
   "scripts": {
     "dev": "vite",
